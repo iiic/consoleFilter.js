@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>consoleFilter.js</title>
+</head>
+
+<body>
+
+	<h1>consoleFilter.js</h1>
+	<strong>Where is it?</strong>
+	<p>In the browser's console. This script working with console. Open it by (for example) F12.</p>
+	<script>
+		const ALLOWED_NAME = 'consoleFilter.js';
+		const NOT_MENTIONED_NAME = 'NotificForExample';
+		const BLOCKED_NAME = 'blockedFile.mjs';
+
+		const CONSOLE = {
+			CLASS_NAME: 'color: gray',
+			METHOD_NAME: 'font-weight: normal; color: green',
+			INTEREST_PARAMETER: 'font-weight: normal; font-size: x-small; color: blue',
+			EVENT_TEXT: 'color: orange',
+			WARNING: 'color: red',
+		};
+
+		const consoleFilter = {
+			allowlist: [ ALLOWED_NAME, 'someFileNotPresented.mjs', 'SomeNonPresentedClass' ],
+			blocklist: [ BLOCKED_NAME, 'blockedAndNonExisting.js', 'blockedClass' ],
+		};
+	</script>
+
+	<script src="/consoleFilter.js" crossorigin="anonymous" integrity="sha256-HuEI8Dp+WM6YHvpyJcyKteGqN23B0MNvcbnhyMkhvdM="></script>
+	<script>
+		console.group( ALLOWED_NAME + ' group for script' );
+		console.log( ALLOWED_NAME ); // without any more text
+		console.log( ALLOWED_NAME + ' allowed console.log()' );
+		console.log( NOT_MENTIONED_NAME + ' not-mentioned console.log()' );
+		console.log( BLOCKED_NAME + ' blocked console.log()' );
+		console.debug( ALLOWED_NAME + ' allowed console.debug()' );
+		console.debug( NOT_MENTIONED_NAME + ' not-mentioned console.debug()' );
+		console.debug( BLOCKED_NAME + ' blocked console.debug()' );
+		console.log( '%c' + ALLOWED_NAME + '%c allowed console.log() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.log( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.log() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.log( '%c' + BLOCKED_NAME + '%c blocked console.log() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + ALLOWED_NAME + '%c allowed console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + BLOCKED_NAME + '%c blocked console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.groupEnd();
+	</script>
+	<script type="module">
+		console.group( ALLOWED_NAME + ' group for script module' );
+		console.log( ALLOWED_NAME ); // without any more text
+		console.log( ALLOWED_NAME + ' allowed console.log() in a module' );
+		console.log( NOT_MENTIONED_NAME + ' not-mentioned console.log() in a module' );
+		console.log( BLOCKED_NAME + ' blocked console.log() in a module' );
+		console.debug( ALLOWED_NAME + ' allowed console.debug() in a module' );
+		console.debug( NOT_MENTIONED_NAME + ' not-mentioned console.debug() in a module' );
+		console.debug( BLOCKED_NAME + ' blocked console.debug() in a module' );
+		console.log( '%c' + ALLOWED_NAME + '%c allowed console.log() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.log( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.log() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.log( '%c' + BLOCKED_NAME + '%c blocked console.log() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + ALLOWED_NAME + '%c allowed console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.debug( '%c' + BLOCKED_NAME + '%c blocked console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.groupEnd();
+	</script>
