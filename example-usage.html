@@ -12,8 +12,8 @@
 	<strong>Where is it?</strong>
 	<p>In the browser's console. This script working with console. Open it by (for example) F12.</p>
 	<script>
-		const ALLOWED_NAME = 'consoleFilter.js';
-		const NOT_MENTIONED_NAME = 'NotificForExample';
+		const ALLOWED_NAME = 'allowedFileName.js';
+		const NOT_MENTIONED_NAME = 'NotMentionedClassName';
 		const BLOCKED_NAME = 'blockedFile.mjs';
 
 		const CONSOLE = {
@@ -30,9 +30,9 @@
 		};
 	</script>
 
-	<script src="/consoleFilter.js" crossorigin="anonymous" integrity="sha256-HuEI8Dp+WM6YHvpyJcyKteGqN23B0MNvcbnhyMkhvdM="></script>
+	<script src="/consoleFilter.js" crossorigin="anonymous" integrity="sha256-uXXs7C2BDEgOxzU68GoX2snxzRxizF6dVw1sdR3rcpw="></script>
 	<script>
-		console.group( ALLOWED_NAME + ' group for script' );
+		console.group( BLOCKED_NAME + ' group for script' );
 		console.log( ALLOWED_NAME ); // without any more text
 		console.log( ALLOWED_NAME + ' allowed console.log()' );
 		console.log( NOT_MENTIONED_NAME + ' not-mentioned console.log()' );
@@ -46,6 +46,10 @@
 		console.debug( '%c' + ALLOWED_NAME + '%c allowed console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
 		console.debug( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
 		console.debug( '%c' + BLOCKED_NAME + '%c blocked console.debug() colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.groupEnd();
+		console.group( ALLOWED_NAME + ' group with anonymous log() and debug()' );
+		console.log( 'simple console.log()' );
+		console.debug( 'simple console.debug()' );
 		console.groupEnd();
 	</script>
 	<script type="module">
@@ -63,5 +67,9 @@
 		console.debug( '%c' + ALLOWED_NAME + '%c allowed console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
 		console.debug( '%c' + NOT_MENTIONED_NAME + '%c not-mentioned console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
 		console.debug( '%c' + BLOCKED_NAME + '%c blocked console.debug() in a module, colored', CONSOLE.CLASS_NAME, CONSOLE.METHOD_NAME );
+		console.groupEnd();
+		console.group( ALLOWED_NAME + ' group with anonymous log() and debug() in a module' );
+		console.log( 'simple console.log() in a module' );
+		console.debug( 'simple console.debug() in a module' );
 		console.groupEnd();
 	</script>
