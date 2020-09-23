@@ -1,5 +1,5 @@
 {
-	"name": "consoleFilter.js",
+	"name": "console-filter-js",
 	"version": "0.2.0",
 	"description": "Make native console.log() (and other console methods) proxied and filtered by text string",
 	"main": "consoleFilter.js",
