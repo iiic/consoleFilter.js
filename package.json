@@ -1,0 +1,42 @@
+{
+	"name": "consoleFilter.js",
+	"version": "0.2.0",
+	"description": "Make native console.log() (and other console methods) proxied and filtered by text string",
+	"main": "consoleFilter.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/iiic/consoleFilter.js.git"
+	},
+	"keywords": [
+		"front-end",
+		"vanilla",
+		"vanilla-js",
+		"javascript",
+		"ecmascript",
+		"js",
+		"console",
+		"cli",
+		"terminal",
+		"log",
+		"logging",
+		"formatting",
+		"debug",
+		"debugger",
+		"debugging",
+		"development",
+		"monitor",
+		"client-side",
+		"tool",
+		"tooling",
+		"web"
+	],
+	"author": "ic <ic.czech+npmjs@gmail.com> (https://iiic.dev/#npmjs)",
+	"license": "CC-BY-SA-4.0",
+	"bugs": {
+		"url": "https://github.com/iiic/consoleFilter.js/issues"
+	},
+	"homepage": "https://iiic.dev/console-filter-js#npmjs"
+}
