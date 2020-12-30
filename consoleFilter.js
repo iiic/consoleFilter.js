@@ -7,16 +7,23 @@
 * @see https://iiic.dev/console-filter
 * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
 * @since Q3 2020
-* @version 0.2
+* @version 0.3
 */
 
-// const consoleFilter = {
-// 	allowlist: [ … ],
-// 	blocklist: [ … ],
-// };
+// <script type="application/json" id="console-filter-settings">
+// 	{
+// 		"allowlist": [ "allowedFileName.js", "someFileNotPresented.mjs", "SomeNonPresentedClass" ],
+// 		"blocklist": [ "blockedFile.mjs", "blockedAndNonExisting.js", "blockedClass" ]
+// 	}
+// </script>
 
 ( function ()
 {
+
+	/** @type {HTMLScriptElement} */
+	const settingsElement = ( document.getElementById( 'console-filter-settings' ) );
+
+	const consoleFilter = JSON.parse( settingsElement.text );
 
 	if ( !( 'console' in window ) ) {
 		//@ts-ignore

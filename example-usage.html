@@ -19,6 +19,14 @@
 		<li>Webpage about script <a href="https://iiic.dev/console-filter-js">https://iiic.dev/console-filter-js</a></li>
 	</ul>
 
+	<script type="application/json" id="console-filter-settings">
+		{
+			"allowlist": [ "allowedFileName.js", "someFileNotPresented.mjs", "SomeNonPresentedClass" ],
+			"blocklist": [ "blockedFile.mjs", "blockedAndNonExisting.js", "blockedClass" ]
+		}
+	</script>
+	<script src="/consoleFilter.js" crossorigin="anonymous" integrity="sha256-2yNQV18AToBKEvQVk4oI6l9hS6A/xxM9FEuITt3hUQU="></script>
+
 	<script>
 		const ALLOWED_NAME = 'allowedFileName.js';
 		const NOT_MENTIONED_NAME = 'NotMentionedClassName';
@@ -31,14 +39,8 @@
 			EVENT_TEXT: 'color: orange',
 			WARNING: 'color: red',
 		};
-
-		const consoleFilter = {
-			allowlist: [ ALLOWED_NAME, 'someFileNotPresented.mjs', 'SomeNonPresentedClass' ],
-			blocklist: [ BLOCKED_NAME, 'blockedAndNonExisting.js', 'blockedClass' ],
-		};
 	</script>
 
-	<script src="/consoleFilter.js" crossorigin="anonymous" integrity="sha256-uXXs7C2BDEgOxzU68GoX2snxzRxizF6dVw1sdR3rcpw="></script>
 	<script>
 		console.group( BLOCKED_NAME + ' group for script' );
 		console.log( ALLOWED_NAME ); // without any more text
