@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types, integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - name: Syntax check
+        run: for file in $(git ls-files '*.mjs' '*.js'); do node --check "$file"; done
+      - name: ESLint
+        run: npm run lint
+      - name: TypeScript type check (JSDoc annotations + .globals.d.ts)
+        run: npm run typecheck
+      - name: SRI integrity hashes in HTML
+        run: npm run check:integrity
+      - name: package.json is publishable
+        run: npm pack --dry-run
+      - name: Security audit of dependencies
+        run: npm audit --audit-level=high
+
+  test:
+    name: Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [ chromium, firefox, webkit ]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - name: Install browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run tests
+        run: npm test
+        env:
+          BROWSER: ${{ matrix.browser }}

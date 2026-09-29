@@ -177,12 +177,7 @@ class ictest extends ictestInternal
 				prototype = Reflect.getPrototypeOf( prototype );
 			}
 		}
-		let result = false;
-		if ( descriptor && ( 'writable' in descriptor ? descriptor.writable : descriptor.set != null ) ) {
-			result = true
-		} else {
-			result = false;
-		}
+		const result = Boolean( descriptor && ( 'writable' in descriptor ? descriptor.writable : descriptor.set !== undefined ) );
 		if ( this.useNegation ? !result : result ) {
 			throw new Error( 'není read only' );
 		}

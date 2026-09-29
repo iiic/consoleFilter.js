@@ -138,9 +138,28 @@ To set a property, it is not necessary to insert the entire settings object, jus
 - `consoleFilter.spec.mjs`, Unit tests for main script. It is not needed for the script's functionality itself. If you delete this file, nothing will happen, everything will work. For programmers or AI agents, however, unit tests will help to find out if their changes broke something.
 - `modules/ictest.mjs`, Tests runtime. Used **only** for the above mentioned unit test file. Not needed for the script itself.
 - `tests-runner.html` HTML file used for run tests in Browser. It is also not needed for the script itself.
+- `scripts/run-browser-tests.mjs` runs `tests-runner.html` in headless browser (Playwright) and fails when any test fails. Used by `npm test` and CI. Not needed for the script itself.
+- `scripts/check-integrity.mjs` checks that SRI `integrity` hashes in `tests-runner.html` match the current files. Not needed for the script itself.
+- `eslint.config.mjs` lint rules derived from the code style in `AGENTS.md`.
+- `.github/workflows/` GitHub Actions (CI) running all checks after every push and pull request.
 - `package.json` command for NPM ( [npm.js](https://www.npmjs.com/) ) catalog.
 - `ADENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
 - `README.md` class description in Markdown.
+
+## Development checks
+
+After every push and pull request, GitHub Actions runs:
+
+- syntax check of all JavaScript files (`node --check`)
+- ESLint (`npm run lint`)
+- TypeScript type check of JSDoc annotations against `consoleFilter.globals.d.ts` (`npm run typecheck`)
+- check of SRI `integrity` hashes in `tests-runner.html` (`npm run check:integrity`)
+- `npm pack --dry-run` and `npm audit`
+- unit tests in headless Chromium, Firefox and WebKit (`npm test`)
+- CodeQL security analysis
+
+Locally: `npm ci`, `npx playwright install chromium` and then `npm run check` runs everything.
+After changing `consoleFilter.spec.mjs` run `npm run fix:integrity` to update its hash in `tests-runner.html`.
 
 ## Common gotchas
 
