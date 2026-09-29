@@ -4,8 +4,9 @@
 
 /**
  * @file check-integrity.mjs
- * @description Checks that `integrity` attributes in HTML files match the current content of the referenced local files.
- * Run with `--fix` to rewrite outdated hashes.
+ * @description Checks that `integrity` attributes in HTML files and in HTML examples in README match the current
+ * content of the referenced local files. Run with `--fix` to rewrite outdated hashes (every occurrence of the old hash
+ * in the file).
  */
 
 import { createHash } from 'node:crypto';
@@ -14,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const ROOT = fileURLToPath( new URL( '..', import.meta.url ) );
-const HTML_FILES = [ 'tests-runner.html' ];
+const FILES = [ 'tests-runner.html', 'README.md' ];
 const isFixMode = process.argv.includes( '--fix' );
 
 /** @type {( tag: string, name: string ) => string | null} */
@@ -30,10 +31,10 @@ const getAttribute = ( tag, name ) =>
 
 let errorsCount = 0;
 
-for ( const htmlFile of HTML_FILES ) {
-	const htmlPath = join( ROOT, htmlFile );
-	let html = await readFile( htmlPath, 'utf8' );
-	const tags = html.split( '<' ).slice( 1 ).map( ( part ) => '<' + part.slice( 0, part.indexOf( '>' ) + 1 ) );
+for ( const file of FILES ) {
+	const filePath = join( ROOT, file );
+	let content = await readFile( filePath, 'utf8' );
+	const tags = content.split( '<' ).slice( 1 ).map( ( part ) => '<' + part.slice( 0, part.indexOf( '>' ) + 1 ) );
 	for ( const tag of tags ) {
 		const integrity = getAttribute( tag, 'integrity' );
 		const source = getAttribute( tag, 'src' ) ?? getAttribute( tag, 'href' );
@@ -44,17 +45,17 @@ for ( const htmlFile of HTML_FILES ) {
 		const algorithm = integrity.split( '-' )[ 0 ];
 		const expected = `${ algorithm }-${ createHash( algorithm ).update( await readFile( localPath ) ).digest( 'base64' ) }`;
 		if ( expected === integrity ) {
-			console.log( `✓ ${ htmlFile }: ${ source }` );
+			console.log( `✓ ${ file }: ${ source }` );
 		} else if ( isFixMode ) {
-			html = html.replace( `integrity="${ integrity }"`, `integrity="${ expected }"` );
-			console.log( `✎ ${ htmlFile }: ${ source } updated to ${ expected }` );
+			content = content.replaceAll( integrity.slice( algorithm.length + 1 ), expected.slice( algorithm.length + 1 ) );
+			console.log( `✎ ${ file }: ${ source } updated to ${ expected }` );
 		} else {
 			errorsCount++;
-			console.error( `✗ ${ htmlFile }: ${ source } has integrity ${ integrity }, but file hash is ${ expected }` );
+			console.error( `✗ ${ file }: ${ source } has integrity ${ integrity }, but file hash is ${ expected }` );
 		}
 	}
 	if ( isFixMode ) {
-		await writeFile( htmlPath, html );
+		await writeFile( filePath, content );
 	}
 }
 

@@ -5,6 +5,7 @@
 /**
  * @file run-browser-tests.mjs
  * @description Runs `tests-runner.html` in headless browser and fails when any test fails. Used by `npm test` and CI.
+ * Test results are read from `window.ictestResults` published by `modules/ictest.mjs`.
  * Browser is selected by `BROWSER` env variable (`chromium` (default), `firefox`, `webkit`),
  * `BROWSER_PATH` env variable can point to custom browser executable.
  */
@@ -13,12 +14,13 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, firefox, webkit } from 'playwright';
 
 const ROOT = fileURLToPath( new URL( '..', import.meta.url ) );
 const RUNNER_PAGE = 'tests-runner.html';
 const SPEC_URL = './consoleFilter.spec.mjs?v=1.0';
-const FAILED_TEST_MARK = '✗';
+const TESTS_TIMEOUT_MS = 60000;
 const BROWSERS = { chromium, firefox, webkit };
 const browserName = /** @type {keyof typeof BROWSERS} */ ( process.env.BROWSER ?? 'chromium' );
 
@@ -62,15 +64,13 @@ const browser = await BROWSERS[ browserName ].launch( process.env.BROWSER_PATH ?
 /** @type {string[]} */
 const failures = [];
 
+let summary = '';
+
 try {
 	const page = await browser.newPage();
 	page.on( 'console', ( message ) =>
 	{
-		const text = message.text();
-		console.log( `[browser ${ message.type() }] ${ text }` );
-		if ( message.type() === 'error' && text.includes( FAILED_TEST_MARK ) ) {
-			failures.push( text );
-		}
+		console.log( `[browser ${ message.type() }] ${ message.text() }` );
 	} );
 	page.on( 'pageerror', ( error ) =>
 	{
@@ -84,16 +84,36 @@ try {
 	await page.goto( `http://127.0.0.1:${ port }/${ RUNNER_PAGE }` );
 
 	// Same URL as in tests-runner.html => same module instance, promise resolves after its top-level await finishes
-	await page.evaluate( ( specUrl ) => import( specUrl ), SPEC_URL );
+	const testsRun = page.evaluate( ( specUrl ) => import( specUrl ), SPEC_URL );
+	testsRun.catch( () => undefined ); // rejection after timeout (closed browser) is not important
+	const timeout = delay( TESTS_TIMEOUT_MS, 'timeout', { ref: false } );
+	if ( await Promise.race( [ testsRun, timeout ] ) === 'timeout' ) {
+		throw new Error( `Tests did not finish within ${ TESTS_TIMEOUT_MS / 1000 } s` );
+	}
 
 	// Give not awaited async parts of the spec (timeouts) time to finish
 	await page.waitForTimeout( 500 );
+
+	const results = await page.evaluate( () => Reflect.get( globalThis, 'ictestResults' ) ?? null );
+	if ( !results ) {
+		failures.push( 'No test results found (window.ictestResults is missing)' );
+	} else {
+		summary = `${ results.passed } passed, ${ results.failed } failed`;
+		/** @type {Array<{ test: string, message: string }>} */
+		const failedTests = results.failures;
+		failedTests.forEach( ( failure ) => failures.push( `✗ ${ failure.test }: ${ failure.message }` ) );
+		if ( results.passed + results.failed === 0 ) {
+			failures.push( 'No tests were run' );
+		}
+	}
 } catch ( /** @type {any} */ error ) {
 	failures.push( `Runner error: ${ error.message }` );
 } finally {
 	await browser.close();
 	server.close();
 }
+
+console.log( `\n${ browserName }: ${ summary || 'no results' }` );
 
 if ( failures.length ) {
 	console.error( `\n${ failures.length } failure(s) in ${ browserName }:` );
