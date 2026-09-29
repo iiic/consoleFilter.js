@@ -14,6 +14,13 @@ class ictestInternal
 		exitCode: 0
 	};
 
+	/** @type {{ passed: number, failed: number, failures: Array<{ test: string, message: string }> }} */
+	results = {
+		passed: 0,
+		failed: 0,
+		failures: []
+	};
+
 	/** @type {any} */
 	asserted;
 
@@ -29,6 +36,23 @@ class ictestInternal
 	afterEachHooks = [];
 
 	useNegation = false;
+
+	/** @description value description for error messages */
+	formatValue = ( /** @type {any} */ value ) =>
+	{
+		return typeof value === 'string' ? JSON.stringify( value ) : String( value );
+	}
+
+	/** @description runs assertion with negation, negation is turned off again also when assertion fails */
+	runNegated = ( /** @type {Function} */ assertion, /** @type {Array.<any>} */ args ) =>
+	{
+		this.useNegation = true;
+		try {
+			assertion( ...args );
+		} finally {
+			this.useNegation = false;
+		}
+	}
 
 	createGroup = async ( /** @type {String} */ name, /** @type {Function} */ fn, /** @type {Function} */ openGroupFn ) =>
 	{
@@ -110,10 +134,17 @@ class ictest extends ictestInternal
 				await hook();
 			}
 			await fn();
+			this.results.passed++;
 			console.log( `✓ ${ description }` );
 		} catch ( /** @type {any} */ err ) {
+			const message = err instanceof Error ? err.message : String( err );
+			this.results.failed++;
+			this.results.failures.push( {
+				test: [ ...this.groupStack.map( group => group.name ), description ].join( ' › ' ),
+				message
+			} );
 			console.error( `✗ ${ description }` );
-			console.error( `${ err.message }` );
+			console.error( message );
 			this.process.exitCode++;
 		} finally {
 			for ( const hook of afterEachHooks ) {
@@ -143,21 +174,29 @@ class ictest extends ictestInternal
 	equal = ( /** @type {any} */ expected, /** @type {String} */ possibleErrorText ) =>
 	{
 		if ( this.useNegation ? this.asserted === expected : this.asserted !== expected ) {
-			throw new Error( possibleErrorText ?? `Expected ${ expected }, but got ${ this.asserted }` );
+			throw new Error( possibleErrorText ?? ( this.useNegation
+				? `Expected value different from ${ this.formatValue( expected ) }`
+				: `Expected ${ this.formatValue( expected ) }, but got ${ this.formatValue( this.asserted ) }` ) );
 		}
 	}
 
 	toBeDefined = ( /** @type {String} */ possibleErrorText ) =>
 	{
-		if ( this.useNegation ? this.asserted : !this.asserted ) {
-			throw new Error( possibleErrorText ?? `opsík` );
+		const isDefined = this.asserted !== undefined;
+		if ( this.useNegation ? isDefined : !isDefined ) {
+			throw new Error( possibleErrorText ?? ( this.useNegation
+				? `Expected undefined, but got ${ this.formatValue( this.asserted ) }`
+				: 'Expected defined value, but got undefined' ) );
 		}
 	}
 
 	toBeInstanceOf = ( /** @type {any} */ instance, /** @type {String} */ possibleErrorText ) =>
 	{
-		if ( this.useNegation ? ( this.asserted instanceof instance ) : !( this.asserted instanceof instance ) ) {
-			throw new Error( possibleErrorText ?? `opsík` );
+		const isInstance = this.asserted instanceof instance;
+		if ( this.useNegation ? isInstance : !isInstance ) {
+			throw new Error( possibleErrorText ?? ( this.useNegation
+				? `Expected value not to be instance of ${ instance.name }`
+				: `Expected instance of ${ instance.name }, but got ${ this.formatValue( this.asserted ) }` ) );
 		}
 	}
 
@@ -179,50 +218,29 @@ class ictest extends ictestInternal
 		}
 		const result = Boolean( descriptor && ( 'writable' in descriptor ? descriptor.writable : descriptor.set !== undefined ) );
 		if ( this.useNegation ? !result : result ) {
-			throw new Error( 'není read only' );
+			throw new Error( this.useNegation ? `Property "${ propertyName }" is read-only` : `Property "${ propertyName }" is not read-only` );
 		}
 	}
 
 	/** @type {Object<string, (...args: any[]) => void>} */
 	not = {
 
-		equal: ( ...args ) =>
-		{
-			this.useNegation = true;
-			// @ts-ignore
-			this.equal( ...args );
-			this.useNegation = false;
-		},
+		equal: ( ...args ) => this.runNegated( this.equal, args ),
 
-		toBeDefined: ( ...args ) =>
-		{
-			this.useNegation = true;
-			// @ts-ignore
-			this.toBeDefined( ...args );
-			this.useNegation = false;
-		},
+		toBeDefined: ( ...args ) => this.runNegated( this.toBeDefined, args ),
 
-		toBeInstanceOf: ( ...args ) =>
-		{
-			this.useNegation = true;
-			// @ts-ignore
-			this.toBeInstanceOf( ...args );
-			this.useNegation = false;
-		},
+		toBeInstanceOf: ( ...args ) => this.runNegated( this.toBeInstanceOf, args ),
 
-		hasReadOnlyProperty: ( ...args ) =>
-		{
-			this.useNegation = true;
-			// @ts-ignore
-			this.hasReadOnlyProperty( ...args );
-			this.useNegation = false;
-		}
+		hasReadOnlyProperty: ( ...args ) => this.runNegated( this.hasReadOnlyProperty, args )
 
 	}
 
 }
 
 const ict = new ictest();
+
+// Results for automated test runners (scripts/run-browser-tests.mjs), console output can be changed by tested code
+/** @type {typeof globalThis & { ictestResults?: typeof ict.results }} */ ( globalThis ).ictestResults = ict.results;
 
 const { applySettings, clearSettings, group, groupClosed, it, assert, beforeEach, afterEach, not, equal, toBeDefined, toBeInstanceOf } = ict;
 export { applySettings, clearSettings, group, groupClosed, it, assert, beforeEach, afterEach, not, equal, toBeDefined, toBeInstanceOf };

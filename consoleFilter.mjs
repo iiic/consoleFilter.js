@@ -10,14 +10,24 @@
 class ConsoleFilterInternal
 {
 
+	/**
+	 * Own settings of the instance, `null` means shared static settings (`ConsoleFilter.settings`)
+	 * @type {Types.Settings | null}
+	 */
+	#ownSettings = null;
+
 	/** @type {Classes.ConsoleFilterInternal['settings']} */
 	get settings ()
 	{
-		return ConsoleFilter.settings;
+		return this.#ownSettings ?? ConsoleFilter.settings;
 	}
 	set settings ( /** @type {Partial<Types.Settings>} */ newSettings )
 	{
-		ConsoleFilter.settings = newSettings;
+		if ( this.#ownSettings === null ) {
+			ConsoleFilter.settings = newSettings;
+			return;
+		}
+		this.#ownSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( this.#ownSettings, newSettings ) );
 	}
 
 	/**
@@ -52,16 +62,72 @@ class ConsoleFilterInternal
 		return /** @type {T} */ ( currentLevel );
 	}
 
+	/** @type {(typeof Classes.ConsoleFilterInternal)['parseSettings']} */
+	static parseSettings ( json, source )
+	{
+		if ( json.trim() === '' ) {
+			return null;
+		}
+
+		/** @type {unknown} */
+		let settings;
+
+		try {
+			settings = JSON.parse( json );
+		} catch ( error ) {
+			ConsoleFilterInternal.reportError( `consoleFilter: settings in ${ source } are not valid JSON, they are ignored.`, error );
+			return null;
+		}
+		if ( settings === null || typeof settings !== 'object' || Array.isArray( settings ) ) {
+			ConsoleFilterInternal.reportError( `consoleFilter: settings in ${ source } are not JSON object, they are ignored.` );
+			return null;
+		}
+		return /** @type {Partial<Types.Settings>} */ ( settings );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['reportError']} */
+	static reportError ( ...data )
+	{
+		const nativeError = ConsoleFilterInternal.nativeConsoleMethods.error ?? globalThis.console?.error;
+		if ( typeof nativeError === 'function' ) {
+			Reflect.apply( nativeError, globalThis.console, data );
+		}
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['normalizeText']} */
+	static normalizeText ( text )
+	{
+		return text.replaceAll( '%c', ' ' ).trim().split( ' ' ).filter( word => word !== '' ).join( ' ' );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['getFilterEntries']} */
+	static getFilterEntries ( list )
+	{
+		return ( Array.isArray( list ) ? list : [ list ] )
+			.filter( entry => typeof entry === 'string' )
+			.map( entry => ConsoleFilterInternal.normalizeText( entry ) )
+			.filter( entry => entry !== '' );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['isSelectedAll']} */
+	static isSelectedAll ( entries )
+	{
+		return entries.includes( ConsoleFilter.SYMBOLS_FOR_ALL.asterisk ) || entries.includes( ConsoleFilter.SYMBOLS_FOR_ALL.text );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['hasMatchingEntry']} */
+	static hasMatchingEntry ( entries, text )
+	{
+		return entries.some( entry => text === entry || text.startsWith( `${ entry } ` ) );
+	}
+
 	/** @type {Partial<Record<Types.ConsoleStaticMethods, Function>>} */
 	static nativeConsoleMethods = {};
 
 	static consoleIsSetup = false;
 
-	/** @type {Array.<string>} */
+	/** @type {Types.OpenedGroup[]} */
 	openedGroups = [];
-
-	/** @type {Array<{commands: Array<{method: Types.ConsoleStaticMethods, proxy: Function, args: Array<*>}>, visible: boolean}>} */
-	asyncGroups = [];
 
 	/** @type {Partial<Record<Types.ConsoleStaticMethods, Function>>} */
 	nativeMethods = {};
@@ -72,8 +138,11 @@ class ConsoleFilterInternal
 	useAsyncLogger = false;
 
 	/** @type { Classes.ConsoleFilterInternal[ 'constructor' ] } */
-	constructor ( settingsElementId = 'console-filter-settings' )
+	constructor ( settingsElementId = 'console-filter-settings', hasOwnSettings = false )
 	{
+		if ( hasOwnSettings ) {
+			this.#ownSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
+		}
 		this.readSettings( settingsElementId );
 		this.setupConsole();
 	}
@@ -114,29 +183,29 @@ class ConsoleFilterInternal
 		ConsoleFilterInternal.consoleIsSetup = true;
 	}
 
-	/** @type {Classes.ConsoleFilterInternal['purgeConsoleCommand']} */
-	purgeConsoleCommand ( importantPart )
+	/** @type {Classes.ConsoleFilterInternal['isAllowedMessage']} */
+	isAllowedMessage ( importantPart )
 	{
-		const isSelectedAll = /** @param {string[]} list */ ( list ) => list[ 0 ] === ConsoleFilter.SYMBOLS_FOR_ALL.asterisk || list[ 0 ] === ConsoleFilter.SYMBOLS_FOR_ALL.text;
-		const allowlist = this.settings.allowlist;
-		const blocklist = this.settings.blocklist;
-		const purge = Boolean( Array.isArray( allowlist ) && allowlist.length && isSelectedAll( allowlist ) && !allowlist.includes( importantPart ) );
+		const allowlist = ConsoleFilterInternal.getFilterEntries( this.settings.allowlist );
+		return ConsoleFilterInternal.isSelectedAll( allowlist ) || ConsoleFilterInternal.hasMatchingEntry( allowlist, importantPart );
+	}
 
-		if ( Array.isArray( blocklist ) && blocklist.length ) {
-			if ( blocklist.includes( importantPart ) ) {
-				return true;
-			}
-			if ( !isSelectedAll( blocklist ) ) {
-				return false;
-			}
+	/** @type {Classes.ConsoleFilterInternal['isHiddenMessage']} */
+	isHiddenMessage ( importantPart, isInsideAllowedGroup = false )
+	{
+		const allowlist = ConsoleFilterInternal.getFilterEntries( this.settings.allowlist );
+		const blocklist = ConsoleFilterInternal.getFilterEntries( this.settings.blocklist );
+		if ( ConsoleFilterInternal.hasMatchingEntry( blocklist, importantPart ) ) {
+			return true;
 		}
-		return purge;
+		const isRestricted = ConsoleFilterInternal.isSelectedAll( blocklist ) || ( allowlist.length > 0 && !ConsoleFilterInternal.isSelectedAll( allowlist ) );
+		return isRestricted && !isInsideAllowedGroup && !this.isAllowedMessage( importantPart );
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['getImportantPart']} */
 	getImportantPart ( args )
 	{
-		return typeof args[ 0 ] === 'string' ? args[ 0 ].replace( /%c/g, ' ' ).trim().split( ' ' )[ 0 ] : '';
+		return typeof args[ 0 ] === 'string' ? ConsoleFilterInternal.normalizeText( args[ 0 ] ) : '';
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['callNativeMethod']} */
@@ -153,9 +222,11 @@ class ConsoleFilterInternal
 		const outputArguments = argumentsList.slice();
 		if ( stringIndexes.length ) {
 			const firstStringIndex = stringIndexes[ 0 ];
-			const lastStringIndex = stringIndexes[ stringIndexes.length - 1 ];
+			// with %c directives in the first argument are the next string arguments CSS styles, not visible text
+			const isStyled = firstStringIndex === 0 && outputArguments[ 0 ].includes( '%c' );
+			const suffixIndex = isStyled ? firstStringIndex : stringIndexes[ stringIndexes.length - 1 ];
 			outputArguments[ firstStringIndex ] = this.settings.texts.prefix + outputArguments[ firstStringIndex ];
-			outputArguments[ lastStringIndex ] += this.settings.texts.suffix;
+			outputArguments[ suffixIndex ] += this.settings.texts.suffix;
 		}
 		const convertedMethod = this.settings.forceConvertFunctions[ method ] ?? method;
 		const nativeMethod = this.nativeMethods[ convertedMethod ];
@@ -215,102 +286,80 @@ class ConsoleFilterInternal
 		parent.appendChild( line );
 	}
 
-	/** @type {Classes.ConsoleFilterInternal['handleAsyncConsoleMethod']} */
-	handleAsyncConsoleMethod ( method, proxy, args )
+	/** @type {Classes.ConsoleFilterInternal['outputCommand']} */
+	outputCommand ( command )
 	{
-		if ( !this.useAsyncLogger || !this.asyncGroups.length ) {
-			return false;
+		const currentGroup = this.openedGroups[ this.openedGroups.length - 1 ];
+		if ( this.useAsyncLogger && currentGroup ) {
+			currentGroup.commands.push( command );
+			return;
 		}
-		if ( method === 'groupEnd' ) {
-			const group = this.asyncGroups.pop();
-			if ( !group ) {
-				return true;
-			}
-			const groupEnd = { method, proxy, args };
-			if ( this.asyncGroups.length ) {
-				if ( group.visible ) {
-					this.asyncGroups[ this.asyncGroups.length - 1 ].commands.push( ...group.commands, groupEnd );
-				}
-			} else if ( group.visible ) {
-				group.commands.forEach( command => this.callNativeMethod( command.method, command.args ) );
-				this.callNativeMethod( method, args );
-			}
-			return true;
-		}
-		if ( typeof args[ 0 ] !== 'string' ) {
-			this.asyncGroups[ this.asyncGroups.length - 1 ].commands.push( { method, proxy, args } );
-			return true;
-		}
-		return false;
+		this.callNativeMethod( command.method, command.args );
 	}
 
-	/** @type {Classes.ConsoleFilterInternal['handleNonStringConsoleMethod']} */
-	handleNonStringConsoleMethod ( method, proxy, args )
+	/** @type {Classes.ConsoleFilterInternal['openGroup']} */
+	openGroup ( command, isVisible, isAllowed )
 	{
-		if ( method === 'groupEnd' && !args.length ) {
-			this.openedGroups.pop();
-			this.callNativeMethod( method );
-			return true;
+
+		/** @type {Types.OpenedGroup} */
+		const group = { visible: isVisible, allowed: isAllowed, commands: [] };
+
+		if ( isVisible && this.useAsyncLogger ) {
+			group.commands.push( command );
+		} else if ( isVisible ) {
+			this.callNativeMethod( command.method, command.args );
 		}
-		if ( this.useAsyncLogger && ( method === ConsoleFilter.GROUP_OPENERS.group || method === ConsoleFilter.GROUP_OPENERS.groupCollapsed ) && typeof args[ 0 ] !== 'string' ) {
-			this.asyncGroups.push( { commands: [ { method, proxy, args } ], visible: true } );
-			return true;
-		}
-		return false;
+		this.openedGroups.push( group );
 	}
 
-	/** @type {Classes.ConsoleFilterInternal['handleStringConsoleMethod']} */
-	handleStringConsoleMethod ( method, proxy, args )
+	/** @type {Classes.ConsoleFilterInternal['closeGroup']} */
+	closeGroup ( command )
 	{
-		const importantPart = this.getImportantPart( args );
-		if ( method === 'groupEnd' ) {
-			this.openedGroups = this.openedGroups.filter( item => item !== importantPart );
-			this.callNativeMethod( method );
+		const group = this.openedGroups.pop();
+		if ( !group ) {
+			// group was not opened through this filter (e.g. before import of this script)
+			this.callNativeMethod( command.method, command.args );
 			return;
 		}
-		const isGroupOpener = method === ConsoleFilter.GROUP_OPENERS.group || method === ConsoleFilter.GROUP_OPENERS.groupCollapsed;
-		if ( typeof this.settings.allowlist === 'string' ) {
-			this.settings.allowlist = [ this.settings.allowlist ];
-		}
-		if ( typeof this.settings.blocklist === 'string' ) {
-			this.settings.blocklist = [ this.settings.blocklist ];
-		}
-		const purgeCurrent = this.purgeConsoleCommand( importantPart );
-		if ( isGroupOpener && this.useAsyncLogger ) {
-
-			/** @type {{commands: Array<{method: Types.ConsoleStaticMethods, proxy: Function, args: unknown[]}>, visible: boolean}} */
-			const asyncGroup = { commands: [], visible: !purgeCurrent };
-
-			this.asyncGroups.push( asyncGroup );
-			if ( asyncGroup.visible ) {
-				asyncGroup.commands.push( { method, proxy, args } );
-			}
+		if ( !group.visible ) {
 			return;
 		}
-		if ( isGroupOpener && purgeCurrent && importantPart ) {
-			this.openedGroups.push( importantPart );
-		}
-		if ( purgeCurrent ) {
+		if ( !this.useAsyncLogger ) {
+			this.callNativeMethod( command.method, command.args );
 			return;
 		}
-		if ( this.useAsyncLogger && this.asyncGroups.length ) {
-			this.asyncGroups[ this.asyncGroups.length - 1 ].commands.push( { method, proxy, args } );
+		group.commands.push( command );
+		const parentGroup = this.openedGroups[ this.openedGroups.length - 1 ];
+		if ( parentGroup ) {
+			parentGroup.commands.push( ...group.commands );
 			return;
 		}
-		this.callNativeMethod( method, args );
+		group.commands.forEach( queuedCommand => this.callNativeMethod( queuedCommand.method, queuedCommand.args ) );
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['handleConsoleMethod']} */
 	handleConsoleMethod ( method, proxy, args )
 	{
-		if ( this.handleAsyncConsoleMethod( method, proxy, args ) || this.handleNonStringConsoleMethod( method, proxy, args ) ) {
+
+		/** @type {Types.ConsoleCommand} */
+		const command = { method, proxy, args };
+
+		if ( method === 'groupEnd' ) {
+			this.closeGroup( command );
 			return;
 		}
-		if ( typeof args[ 0 ] === 'string' ) {
-			this.handleStringConsoleMethod( method, proxy, args );
+		const parentGroup = this.openedGroups[ this.openedGroups.length - 1 ];
+		const isInsideAllowedGroup = parentGroup?.allowed ?? false;
+		// message of console.assert() starts after the condition
+		const importantPart = this.getImportantPart( method === 'assert' ? args.slice( 1 ) : args );
+		const isVisible = ( parentGroup?.visible ?? true ) && ( method === 'clear' || !this.isHiddenMessage( importantPart, isInsideAllowedGroup ) );
+		if ( method === ConsoleFilter.GROUP_OPENERS.group || method === ConsoleFilter.GROUP_OPENERS.groupCollapsed ) {
+			this.openGroup( command, isVisible, isInsideAllowedGroup || this.isAllowedMessage( importantPart ) );
 			return;
 		}
-		this.callNativeMethod( method, args );
+		if ( isVisible ) {
+			this.outputCommand( command );
+		}
 	}
 }
 
@@ -378,17 +427,22 @@ class ConsoleFilter extends ConsoleFilterInternal
 		readSettings: function ( /** @type {string} */ settingsElementId = 'console-filter-settings' )
 		{
 			const settingsTarget = this instanceof ConsoleFilterInternal ? this : ConsoleFilter;
-			const searchParams = new URL( import.meta.url ).searchParams;
-			if ( searchParams.has( ConsoleFilter.SETTINGS_URL_PARAMETER ) ) {
-				const jsonInString = searchParams.get( ConsoleFilter.SETTINGS_URL_PARAMETER );
-				if ( jsonInString ) {
-					settingsTarget.settings = JSON.parse( jsonInString );
-				}
+			const jsonInUrl = new URL( import.meta.url ).searchParams.get( ConsoleFilter.SETTINGS_URL_PARAMETER );
+			const settingsFromUrl = jsonInUrl
+				? ConsoleFilterInternal.parseSettings( jsonInUrl, `URL parameter "${ ConsoleFilter.SETTINGS_URL_PARAMETER }"` )
+				: null;
+			if ( settingsFromUrl ) {
+				settingsTarget.settings = settingsFromUrl;
+			}
+			if ( typeof document === 'undefined' ) {
+				return;
 			}
 			const settingsElement = document.getElementById( settingsElementId );
-			if ( settingsElement && settingsElement instanceof HTMLScriptElement ) {
-				const jsonInElement = settingsElement;
-				settingsTarget.settings = JSON.parse( jsonInElement.text );
+			const settingsFromElement = settingsElement instanceof HTMLScriptElement
+				? ConsoleFilterInternal.parseSettings( settingsElement.text, `element #${ settingsElementId }` )
+				: null;
+			if ( settingsFromElement ) {
+				settingsTarget.settings = settingsFromElement;
 			}
 		},
 		assert: function ( /** @type {boolean} */ condition, /** @type {any[]} */ ...data ) { callConsoleMethod( this, 'assert', [ condition, ...data ] ); },
@@ -413,9 +467,9 @@ class ConsoleFilter extends ConsoleFilterInternal
 	};
 
 	/** @type {Classes.ConsoleFilter['constructor']} */
-	constructor ( settingsElementId = 'console-filter-settings' )
+	constructor ( settingsElementId = 'console-filter-settings', hasOwnSettings = false )
 	{
-		super( ...arguments );
+		super( settingsElementId, hasOwnSettings );
 		this.useAsyncLogger = true;
 	}
 
@@ -467,7 +521,7 @@ Object.defineProperty( ConsoleFilter, 'DEFAULT_SETTINGS', {
 /** @param {ConsoleFilterInternal|typeof ConsoleFilter.methods} context @param {Types.ConsoleStaticMethods} method @param {unknown[]} args */
 function callConsoleMethod ( context, method, args )
 {
-	const instance = context instanceof ConsoleFilter ? context : ( defaultConsoleFilter ??= new ConsoleFilter() );
+	const instance = context instanceof ConsoleFilterInternal ? context : defaultConsoleFilter;
 	instance.handleConsoleMethod( method, instance.nativeMethods[ method ], args );
 }
 
@@ -475,30 +529,8 @@ class AsyncLogger
 {
 	constructor ( settingsElementId = 'console-filter-settings' )
 	{
-		const cf = new ConsoleFilter( settingsElementId );
-
-		/** @type {Types.Settings | null} */
-		let instanceSettings = null;
-
-		// Přepišeme getter/setter settings na instanci cf, aby měla vlastní nastavení
-		Object.defineProperty( cf, 'settings', {
-			get: () =>
-			{
-				if ( instanceSettings === null ) {
-					instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
-				}
-				return instanceSettings;
-			},
-			set: ( newSettings ) =>
-			{
-				if ( instanceSettings === null ) {
-					instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
-				}
-				instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( instanceSettings, newSettings ) );
-			},
-			enumerable: true,
-			configurable: true
-		} );
+		// own settings, read from default settings, URL parameter and JSON element of the page
+		const cf = new ConsoleFilter( settingsElementId, true );
 
 		/** @type {Types.ConsoleMethodNames[]} */
 		const methods = /** @type {Types.ConsoleMethodNames[]} */ ( Object.keys( ConsoleFilter.methods ) );
@@ -525,10 +557,9 @@ class AsyncLogger
 	}
 }
 
-let defaultConsoleFilter;
-
-// Initialize ConsoleFilter with settings loaded during module import
-defaultConsoleFilter = new ConsoleFilter();
+// Filter for native console and static methods, with settings loaded during module import. It writes messages
+// immediately, only AsyncLogger (ConsoleFilter instances) holds content of groups until the group is closed.
+const defaultConsoleFilter = new ConsoleFilterInternal();
 
 const { methods } = ConsoleFilter;
 

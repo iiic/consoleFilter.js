@@ -9,16 +9,16 @@ Make native `console.log()` (and other console methods) proxied and filtered by 
 - `modules/ictest.mjs`, Tests runtime. Used **only** for the above mentioned unit test file. Not needed for the script itself.
 - `tests-runner.html` HTML file used for run tests in Browser. It is also not needed for the script itself.
 - `scripts/run-browser-tests.mjs` runs `tests-runner.html` in headless browser (Playwright) and fails when any test fails. Used by `npm test` and CI. Not needed for the script itself.
-- `scripts/check-integrity.mjs` checks that SRI `integrity` hashes in `tests-runner.html` match the current files. Not needed for the script itself.
+- `scripts/check-integrity.mjs` checks that SRI `integrity` hashes in `tests-runner.html` and `README.md` match the current files. Not needed for the script itself.
 - `eslint.config.mjs` lint rules derived from the code style in `AGENTS.md`.
 - `.github/workflows/` GitHub Actions (CI) running all checks after every push and pull request.
 - `package.json` command for NPM ( [npm.js](https://www.npmjs.com/) ) catalog.
-- `ADENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
+- `AGENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
 - `README.md` class description in Markdown.
 
 ## Checks & tests
 - Before commit run `npm run check` (lint, type check, SRI integrity, browser tests). The same runs in GitHub Actions.
-- After changing `consoleFilter.spec.mjs` run `npm run fix:integrity`, otherwise browser refuses to load the spec.
+- After changing `consoleFilter.mjs` or `consoleFilter.spec.mjs` run `npm run fix:integrity` (updates hashes in `README.md` and `tests-runner.html`), otherwise browser refuses to load the changed file.
 - Browser for tests can be selected by `BROWSER` env variable (`chromium`, `firefox`, `webkit`).
 
 ## Full Offline support:

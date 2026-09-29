@@ -1,7 +1,7 @@
 # consoleFilter.js
 
 version: 1.0
-integrity check sha256: wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4=
+integrity check sha256: zXEmiXnwYJz3RMhOIi4VbhKOT1v3nvgs7k3MW+yK0z8=
 
 Make native `console.log()` (and other console methods) proxied and filtered by text string.
 Only pure javascript with TypeScript annotations, no other dependencies, libraries, frameworks or anything like that. TypeScript what? It's only about annotations, automatic tools can mark this class as a TypeScript library, but it's not true, just an autodetection failure, the script itself is pure javascript, only the annotations, interfaces, variable types described by TypeScript, ...
@@ -12,7 +12,7 @@ Use
 Include file `consoleFilter.mjs` into document. Including should look like:
 
 ``` html
-<script src="./consoleFilter.mjs?v=1.0" type="module" crossorigin="anonymous" integrity="sha256-wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4="></script>
+<script src="./consoleFilter.mjs?v=1.0" type="module" crossorigin="anonymous" integrity="sha256-zXEmiXnwYJz3RMhOIi4VbhKOT1v3nvgs7k3MW+yK0z8="></script>
 ```
 
 or inside javascript:
@@ -25,7 +25,7 @@ After import all console commands are proxied!
 
 ## How to set what to filter?
 
-There are 2 options, and for both the same applies: you only fill in the parts of the settings you want to change; if you do not mention them, the default settings are used. You can find the default settings from the static read-only method `ConsoleFilter.DEFAULT_SETTINGS`. For clarity, that variable contains the default settings, not the current instance settings.
+There are 2 options, and for both the same applies: you only fill in the parts of the settings you want to change; if you do not mention them, the default settings are used. You can find the default settings from the static read-only property `ConsoleFilter.DEFAULT_SETTINGS`. For clarity, that variable contains the default settings, not the current instance settings.
 
 ### 1. Configure via a JSON element.
 
@@ -36,49 +36,66 @@ The important attribute here is `id` with the value `console-filter-settings`. T
 ``` html
 <script type="application/json" id="console-filter-settings">
 {
-	"allowlist": [ "items" ],
-	"blocklist": [ "word", "another", "word" ],
+	"allowlist": [ "items", "cart" ],
+	"blocklist": [ "items debug" ]
 }
 </script>
 ```
 
+The content must be valid JSON (e.g. no comma after the last item).
+
 ### 2. Inject settings via an HTTP GET parameter.
 
-The second option is to place them in the HTTP GET parameter named `settings`. (You can find the parameter name from the static read-only method `ConsoleFilter.SETTINGS_URL_PARAMETER`.) The value must be JSON-escaped, for example with `JSON.stringify()`.
+The second option is to place them in the HTTP GET parameter named `settings`. (You can find the parameter name from the static read-only property `ConsoleFilter.SETTINGS_URL_PARAMETER`.) The value is JSON encoded for use in URL, for example with `encodeURIComponent( JSON.stringify( … ) )`. Without `encodeURIComponent()` characters like `&`, `#` or `+` in the settings would break the URL.
 
-The function is asynchronous, so you must wait for the result using await or Promise.
+Dynamic `import()` is asynchronous, so you must wait for the result using await or Promise.
 
 Example:
 ```html
 <script type="module">
-	const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + JSON.stringify( {
-		"allowlist": [ "items" ],
-		"blocklist": [ "word", "another", "word" ],
-	} ) );
+	const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + encodeURIComponent( JSON.stringify( {
+		allowlist: [ 'items', 'cart' ],
+		blocklist: [ 'items debug' ],
+	} ) ) );
 </script>
 ```
 
-Option 1 is slightly less resource-intensive, but the difference is minimal. The two configuration methods cannot be combined; choose one or the other.
+Option 1 is slightly less resource-intensive, but the difference is minimal. Both options can be combined: settings from the URL parameter are applied first, settings from the JSON element override them. Invalid settings (e.g. invalid JSON) are reported by `console.error()` and ignored, the script works with the rest of the settings.
 
 ### Re-load settings
 
 You can load new settings and the functions will work with it immediately.
 
-Using the `ConsoleFilter.methods.readSettings()` (for static methods) command or the `instanceOfConsoleFilter.readSettings()` command, the script will again search for `<script type="application/json" id="console-filter-settings">` and load the settings from it.
+Using the `ConsoleFilter.methods.readSettings()` (for static methods) command or the `instanceOfConsoleFilter.readSettings()` command (e.g. `consoleA.readSettings()` for one `AsyncLogger`), the script will again search for `<script type="application/json" id="console-filter-settings">` and merge the settings from it into the current settings.
 
 ## So what exactly does it do?
 
-As described above, after including the script (in any way), all script commands are now proxied and respond to settings (whitelist and/or blacklist).
+As described above, after including the script (in any way), all console commands are now proxied and respond to settings (`allowlist` and/or `blocklist`).
 
-So for example `console.log( 'exact string' )` will be wiped out if `settings.blacklist` is set to `['exact string', /* … more possible strings … */]`… or logs into Browser's console normally, if `exact string` is not blacklisted.
+So for example `console.log( 'exact string' )` will be wiped out if `settings.blocklist` is set to `['exact string', /* … more possible strings … */]`… or logs into Browser's console normally, if `exact string` is not blocked.
+
+### How filtering works
+
+A message is identified by its beginning: the first argument, when it is a string (`%c` style directives and repeated spaces are ignored; for `console.assert()` it is the first argument after the condition). So it is good to start messages with some identifier – a class name, a file name, … – for example `console.log( 'ItemsList loaded', items )`.
+
+An entry of `allowlist` or `blocklist` matches a message when the message starts with the entry as whole words: entry `'items'` matches `'items'` and `'items loaded'`, but not `'itemsLoaded'`; entry `'exact string'` matches `'exact string'` and `'exact string with more words'`.
+
+- `blocklist` – matching messages are hidden. It has priority over `allowlist`.
+- `allowlist` – when it is not empty, only matching messages are written.
+- `'*'` (or `'all'`) – in `allowlist` allows everything, in `blocklist` hides everything except messages matching `allowlist`.
+- groups (`console.group()`, `console.groupCollapsed()`) – whole content of a group matching `allowlist` is written (except messages matching `blocklist`), whole content of a hidden group is hidden.
+- messages without text at the beginning (e.g. `console.log( { data } )`) are hidden only when the output is restricted by a non-empty `allowlist` or by `blocklist` `'*'` (inside a group matching `allowlist` they are written).
+- `console.clear()` and `console.groupEnd()` are not compared with `allowlist` and `blocklist`.
+
+Native `console` and `methods` (see below) write messages immediately, also inside groups.
 
 But that's not all
 
 When dynamically importing, you can use the `methods` object, it contains all static console methods with the same parameters as in the console object. So you can use, for example, `const specialConsole = methods; specialConsole.log('some string');` what is it for? This is in case you want to keep `console` unchanged and have the filtered commands in another object, in this case it was the object in the `specialConsole` variable. However, in this case, it is necessary to tell ConsoleFilter during import that it should not modify the native `console` object in any way. This can be done using the `bool` setting `autoAppendConsole`, which you can change from the default `true` to `false`. Both settings work (as described above). Then you have (for example) the standard `console.log()` and the filtered `specialConsole.log()` available.
 
-And finally, the `AsyncLogger` class, which is used for logging inside asynchronous methods called immediately after each other. Otherwise, commands inside groups (`console.group()` and `console.groupCollapsed()`) could be mixed up. How to do that? For example, `const consoleA = new AsyncLogger();` and `const consoleB = new AsyncLogger()`. Now, if `consoleA` and `consoleB` have an open group (`.group()`), their output will not mix and will be output only after each group is closed (using `.groupClose()`).
+And finally, the `AsyncLogger` class, which is used for logging inside asynchronous methods called immediately after each other. Otherwise, commands inside groups (`console.group()` and `console.groupCollapsed()`) could be mixed up. How to do that? For example, `const consoleA = new AsyncLogger();` and `const consoleB = new AsyncLogger()`. Now, if `consoleA` and `consoleB` have an open group (`.group()`), their output will not mix and will be output only after each group is closed (using `.groupEnd()`). Because of that, `.time()` / `.timeEnd()` and `.trace()` inside a group of `AsyncLogger` are evaluated when the group is written out, not when they are called.
 
-In addition, `groupA` and `groupB` now each have their own settings, if I want to prefix all records in the console view with a string. This is possible by changing the settings of each group. For example: `groupA.settings.texts.prefix = 'a: '`, now all records in `groupA` will be prefixed with `'a: '`, if I write the command `groupA.log('some text')`, the record in the console will be: `'a: some text'`. At the same time, `groupB.log('some text')` will only log `'some text'`, the setting was for groupA, not for groupB.
+In addition, `consoleA` and `consoleB` now each have their own settings. A new `AsyncLogger` starts with the settings of the page (JSON element and URL parameter) and changes of its settings do not affect the native `console` or other loggers. If I want to prefix all records in the console view with a string, this is possible by changing the settings of each logger. For example: `consoleA.settings.texts.prefix = 'a: '`, now all records in `consoleA` will be prefixed with `'a: '`, if I write the command `consoleA.log('some text')`, the record in the console will be: `'a: some text'`. At the same time, `consoleB.log('some text')` will only log `'some text'`, the setting was for consoleA, not for consoleB.
 
 ## All settings:
 
@@ -87,10 +104,16 @@ The settings are described by this annotation:
 ```typescript
 type Settings = {
 
-	/** Messages or patterns that are allowed */
+	/**
+	 * Beginnings of messages (whole words) that are allowed, when not empty only they are written.
+	 * '*' or 'all' allows everything
+	 */
 	allowlist?: string | string[],
 
-	/** Messages or patterns that are blocked */
+	/**
+	 * Beginnings of messages (whole words) that are hidden, it has priority over allowlist.
+	 * '*' or 'all' hides everything except allowlist
+	 */
 	blocklist?: string | string[],
 
 	/** Automatically appends the console to the document */
@@ -139,11 +162,11 @@ To set a property, it is not necessary to insert the entire settings object, jus
 - `modules/ictest.mjs`, Tests runtime. Used **only** for the above mentioned unit test file. Not needed for the script itself.
 - `tests-runner.html` HTML file used for run tests in Browser. It is also not needed for the script itself.
 - `scripts/run-browser-tests.mjs` runs `tests-runner.html` in headless browser (Playwright) and fails when any test fails. Used by `npm test` and CI. Not needed for the script itself.
-- `scripts/check-integrity.mjs` checks that SRI `integrity` hashes in `tests-runner.html` match the current files. Not needed for the script itself.
+- `scripts/check-integrity.mjs` checks that SRI `integrity` hashes in `tests-runner.html` and `README.md` match the current files. Not needed for the script itself.
 - `eslint.config.mjs` lint rules derived from the code style in `AGENTS.md`.
 - `.github/workflows/` GitHub Actions (CI) running all checks after every push and pull request.
 - `package.json` command for NPM ( [npm.js](https://www.npmjs.com/) ) catalog.
-- `ADENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
+- `AGENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
 - `README.md` class description in Markdown.
 
 ## Development checks
@@ -153,13 +176,13 @@ After every push and pull request, GitHub Actions runs:
 - syntax check of all JavaScript files (`node --check`)
 - ESLint (`npm run lint`)
 - TypeScript type check of JSDoc annotations against `consoleFilter.globals.d.ts` (`npm run typecheck`)
-- check of SRI `integrity` hashes in `tests-runner.html` (`npm run check:integrity`)
+- check of SRI `integrity` hashes in `tests-runner.html` and `README.md` (`npm run check:integrity`)
 - `npm pack --dry-run` and `npm audit`
 - unit tests in headless Chromium, Firefox and WebKit (`npm test`)
 - CodeQL security analysis
 
 Locally: `npm ci`, `npx playwright install chromium` and then `npm run check` runs everything.
-After changing `consoleFilter.spec.mjs` run `npm run fix:integrity` to update its hash in `tests-runner.html`.
+After changing `consoleFilter.mjs` or `consoleFilter.spec.mjs` run `npm run fix:integrity` to update their hashes in `README.md` and `tests-runner.html`.
 
 ## Common gotchas
 
