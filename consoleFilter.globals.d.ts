@@ -141,28 +141,28 @@ declare global {
 		/** Map of native console methods */
 		type NativeMethods = Partial<Record<ConsoleStaticMethods, Function>>;
 
-		/** A queued asynchronous console command */
-		type AsyncGroupCommand = {
+		/** One call of a console method */
+		type ConsoleCommand = {
 
 			/** Name of the console method */
 			method: ConsoleStaticMethods,
 
-			/** Function used to execute the method */
-			proxy: Function,
+			/** Native console method (can be missing in some environments) */
+			proxy: Function | undefined,
 
 			/** Arguments passed to the method */
 			args: any[],
 
 		};
 
-		/** State of a group of asynchronous console commands */
-		type AsyncGroup = {
+		/** State of an opened console group */
+		type OpenedGroup = {
 
-			/** Queued commands */
-			commands: AsyncGroupCommand[],
-
-			/** Whether the group is visible */
+			/** Whether the group (and its content) is visible */
 			visible: boolean,
+
+			/** Commands held until the group is closed (only for asynchronous logger) */
+			commands: ConsoleCommand[],
 
 		};
 
@@ -217,11 +217,8 @@ declare global {
 			/** Current settings (with setter function for safety) */
 			set settings( newSettings: Partial<Types.Settings> );
 
-			/** Currently opened console groups */
-			openedGroups: string[];
-
-			/** Queued asynchronous console groups */
-			asyncGroups: Types.AsyncGroup[];
+			/** Currently opened console groups (the last one is the innermost group) */
+			openedGroups: Types.OpenedGroup[];
 
 			/** Captured native console methods */
 			nativeMethods: Types.NativeMethods;
@@ -229,7 +226,7 @@ declare global {
 			/** Open groups currently rendered in document.body */
 			bodyConsoleGroups: HTMLElement[];
 
-			/** Whether asynchronous logging is enabled */
+			/** Whether content of groups is held until the group is closed (true for ConsoleFilter instances) */
 			useAsyncLogger: boolean;
 
 			/** Constructor for ConsoleFilterInternal */
@@ -253,17 +250,17 @@ declare global {
 			/** Appends a console message to the document body */
 			appendConsoleMessage( method: Types.ConsoleStaticMethods, args: any[] ): void;
 
-			/** Handles a console method while asynchronous logging is active */
-			handleAsyncConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): boolean;
+			/** Writes a visible command, or holds it in the current group of asynchronous logger */
+			outputCommand( command: Types.ConsoleCommand ): void;
 
-			/** Handles a console method with non-string arguments */
-			handleNonStringConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): boolean;
+			/** Opens a console group, content of an invisible group is hidden */
+			openGroup( command: Types.ConsoleCommand, isVisible: boolean ): void;
 
-			/** Handles a console method with string arguments */
-			handleStringConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): void;
+			/** Closes the innermost console group (asynchronous logger writes held content of the outermost group) */
+			closeGroup( command: Types.ConsoleCommand ): void;
 
 			/** Handles a call to a console method */
-			handleConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): void;
+			handleConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function | undefined, args: any[] ): void;
 
 		}
 

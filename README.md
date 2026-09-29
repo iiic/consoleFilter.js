@@ -1,7 +1,7 @@
 # consoleFilter.js
 
 version: 1.0
-integrity check sha256: wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4=
+integrity check sha256: yF6dqlQ+I2O94FajuZgS6KFumodSQGMMcxjHzgk3OBA=
 
 Make native `console.log()` (and other console methods) proxied and filtered by text string.
 Only pure javascript with TypeScript annotations, no other dependencies, libraries, frameworks or anything like that. TypeScript what? It's only about annotations, automatic tools can mark this class as a TypeScript library, but it's not true, just an autodetection failure, the script itself is pure javascript, only the annotations, interfaces, variable types described by TypeScript, ...
@@ -12,7 +12,7 @@ Use
 Include file `consoleFilter.mjs` into document. Including should look like:
 
 ``` html
-<script src="./consoleFilter.mjs?v=1.0" type="module" crossorigin="anonymous" integrity="sha256-wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4="></script>
+<script src="./consoleFilter.mjs?v=1.0" type="module" crossorigin="anonymous" integrity="sha256-yF6dqlQ+I2O94FajuZgS6KFumodSQGMMcxjHzgk3OBA="></script>
 ```
 
 or inside javascript:

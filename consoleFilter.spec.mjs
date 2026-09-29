@@ -8,6 +8,31 @@ const { applySettings, clearSettings, group, groupClosed, it, assert, beforeEach
 } ) );
 
 const JSON_SETTINGS_ID = 'console-filter-settings';
+const OUTPUT_ID = 'console-filter-output';
+
+let markerCount = 0;
+
+/** @returns {string} unique text to find a message in the output mirror in document body */
+const createMarker = () => `[marker ${ ++markerCount }]`;
+
+/** @param {string} text @returns {boolean} whether the text is written in the output mirror in document body */
+const isInOutput = ( text ) => document.getElementById( OUTPUT_ID )?.textContent?.includes( text ) ?? false;
+
+/** @param {string} title @returns {HTMLElement | null} group (details element) of the output mirror with the title */
+const getOutputGroup = ( title ) => [ ...document.querySelectorAll( `#${ OUTPUT_ID } summary` ) ]
+	.find( ( summary ) => summary.textContent?.includes( title ) )?.parentElement ?? null;
+
+/** @param {Object} settings @param {Function} fn runs synchronous fn with temporarily changed global settings */
+const withGlobalSettings = ( settings, fn ) =>
+{
+	const originalSettings = structuredClone( ConsoleFilter.settings );
+	ConsoleFilter.settings = settings;
+	try {
+		fn();
+	} finally {
+		ConsoleFilter.settings = originalSettings;
+	}
+};
 
 console.log( 'All tests are only in browser\'s console… here in document body it\'s mirror' );
 
@@ -435,6 +460,75 @@ await group( 'Dynamic tests', async () =>
 		newInstance.log( 'eee' );
 		newInstance.log( 'aaa' );
 		clearSettings( JSON_SETTINGS_ID );
+	} );
+
+} );
+
+await group( 'Groups and time of output', async () =>
+{
+
+	await it( 'Global console writes messages inside a group immediately', () =>
+	{
+		const marker = createMarker();
+		console.group( `immediate group ${ createMarker() }` );
+		console.log( `inside group ${ marker }` );
+		const isWrittenBeforeGroupEnd = isInOutput( marker );
+		console.groupEnd();
+		assert( isWrittenBeforeGroupEnd ).equal( true );
+	} );
+
+	await it( 'Static methods write messages inside a group immediately', () =>
+	{
+		const marker = createMarker();
+		methods.group( `static methods group ${ createMarker() }` );
+		methods.log( `inside group ${ marker }` );
+		const isWrittenBeforeGroupEnd = isInOutput( marker );
+		methods.groupEnd();
+		assert( isWrittenBeforeGroupEnd ).equal( true );
+	} );
+
+	await it( 'Hidden group hides its content and does not close its parent group', () =>
+	{
+		const [ parentMarker, hiddenMarker, afterMarker ] = [ createMarker(), createMarker(), createMarker() ];
+		withGlobalSettings( { blocklist: [ 'hidden' ] }, () =>
+		{
+			console.group( `parent group ${ parentMarker }` );
+			console.group( 'hidden group' );
+			console.log( `inside hidden group ${ hiddenMarker }` );
+			console.groupEnd();
+			console.log( `after hidden group ${ afterMarker }` );
+			console.groupEnd();
+		} );
+		assert( isInOutput( hiddenMarker ) ).equal( false );
+		assert( getOutputGroup( parentMarker )?.textContent?.includes( afterMarker ) ).equal( true );
+	} );
+
+	await it( 'AsyncLogger writes content of a group only after the outermost group is closed', () =>
+	{
+		const logger = new AsyncLogger();
+		const [ groupMarker, innerMarker ] = [ createMarker(), createMarker() ];
+		logger.settings.appendConsoleIntoBody = true;
+		logger.group( `async group ${ groupMarker }` );
+		logger.group( 'nested async group' );
+		logger.log( `inside nested group ${ innerMarker }` );
+		logger.groupEnd();
+		const isWrittenBeforeGroupEnd = isInOutput( groupMarker ) || isInOutput( innerMarker );
+		logger.groupEnd();
+		assert( isWrittenBeforeGroupEnd ).equal( false );
+		assert( getOutputGroup( groupMarker )?.textContent?.includes( innerMarker ) ).equal( true );
+	} );
+
+	await it( 'AsyncLogger hides content of a hidden group', () =>
+	{
+		const logger = new AsyncLogger();
+		const [ hiddenMarker, afterMarker ] = [ createMarker(), createMarker() ];
+		logger.settings = { appendConsoleIntoBody: true, blocklist: [ 'hidden' ] };
+		logger.group( 'hidden group' );
+		logger.log( `inside hidden group ${ hiddenMarker }` );
+		logger.groupEnd();
+		logger.log( `after hidden group ${ afterMarker }` );
+		assert( isInOutput( hiddenMarker ) ).equal( false );
+		assert( isInOutput( afterMarker ) ).equal( true );
 	} );
 
 } );
