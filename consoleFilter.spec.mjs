@@ -11,6 +11,31 @@ const JSON_SETTINGS_ID = 'console-filter-settings';
 
 console.log( 'All tests are only in browser\'s console… here in document body it\'s mirror' );
 
+await groupClosed( 'Test runtime (ictest)', async () =>
+{
+
+	await it( 'Failed negated assertion does not negate following assertions', () =>
+	{
+		let hasFailed = false;
+		try {
+			assert( 1 ).not.equal( 1 );
+		} catch {
+			hasFailed = true;
+		}
+		assert( hasFailed ).equal( true );
+	} );
+
+	await it( 'toBeDefined() accepts falsy values, not.toBeDefined() accepts only undefined', () =>
+	{
+		assert( 0 ).toBeDefined();
+		assert( false ).toBeDefined();
+		assert( '' ).toBeDefined();
+		assert( null ).toBeDefined();
+		assert( undefined ).not.toBeDefined();
+	} );
+
+} );
+
 await group( 'Static tests', async () =>
 {
 
