@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - name: Syntax check
         run: for file in $(git ls-files '*.mjs' '*.js'); do node --check "$file"; done
+      - name: Import in Node.js (without document)
+        run: node --input-type=module --eval "await import('./consoleFilter.mjs')"
       - name: ESLint
         run: npm run lint
       - name: TypeScript type check (JSDoc annotations + .globals.d.ts)

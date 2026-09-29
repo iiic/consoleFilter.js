@@ -376,6 +376,7 @@ await group( 'Dynamic tests', async () =>
 	await it( 'Instance readSettings should set instance settings', () =>
 	{
 		const prefixValue = 'instance text prefix';
+		const defaultPrefixValue = ConsoleFilter.settings.texts.prefix;
 		applySettings( JSON_SETTINGS_ID, {
 			texts: {
 				prefix: prefixValue
@@ -383,8 +384,11 @@ await group( 'Dynamic tests', async () =>
 		} );
 		const newInstance = new ConsoleFilter();
 		newInstance.readSettings();
-		assert( newInstance.settings.texts.prefix ).equal( prefixValue );
 		clearSettings( JSON_SETTINGS_ID );
+		const instancePrefixValue = newInstance.settings.texts.prefix;
+		// instance without own settings shares global settings, so restore them
+		ConsoleFilter.settings.texts.prefix = defaultPrefixValue;
+		assert( instancePrefixValue ).equal( prefixValue );
 	} );
 
 	await group( 'Force change one console command to another', () =>
@@ -476,6 +480,90 @@ await group( 'Dynamic tests', async () =>
 		newInstance.log( 'eee' );
 		newInstance.log( 'aaa' );
 		clearSettings( JSON_SETTINGS_ID );
+	} );
+
+} );
+
+await group( 'Reading settings', async () =>
+{
+
+	await it( 'new AsyncLogger() uses settings of the page and does not change global settings', () =>
+	{
+		const prefixValue = 'async logger prefix';
+		const defaultPrefixValue = ConsoleFilter.settings.texts.prefix;
+		const defaultLogConversion = ConsoleFilter.settings.forceConvertFunctions.log;
+		applySettings( JSON_SETTINGS_ID, {
+			texts: {
+				prefix: prefixValue
+			},
+			forceConvertFunctions: {
+				log: 'warn'
+			}
+		} );
+		const logger = new AsyncLogger();
+		clearSettings( JSON_SETTINGS_ID );
+		assert( logger.settings.texts.prefix ).equal( prefixValue );
+		assert( logger.settings.appendConsoleIntoBody ).equal( true ); // from URL parameter of this spec's import
+		assert( ConsoleFilter.settings.texts.prefix ).equal( defaultPrefixValue );
+		assert( ConsoleFilter.settings.forceConvertFunctions.log ).equal( defaultLogConversion );
+	} );
+
+	await it( 'ConsoleFilter with own settings does not change global settings', () =>
+	{
+		const prefixValue = 'own settings prefix';
+		const defaultPrefixValue = ConsoleFilter.settings.texts.prefix;
+		applySettings( JSON_SETTINGS_ID, {
+			texts: {
+				prefix: prefixValue
+			}
+		} );
+		const newInstance = new ConsoleFilter( JSON_SETTINGS_ID, true );
+		clearSettings( JSON_SETTINGS_ID );
+		assert( newInstance.settings.texts.prefix ).equal( prefixValue );
+		assert( ConsoleFilter.settings.texts.prefix ).equal( defaultPrefixValue );
+	} );
+
+	await it( 'Invalid JSON in settings element is reported and ignored', () =>
+	{
+		const settingsElement = document.createElement( 'script' );
+		settingsElement.type = 'application/json';
+		settingsElement.id = JSON_SETTINGS_ID;
+		settingsElement.textContent = '{ "texts": { "prefix": "invalid", }, }';
+		document.body.appendChild( settingsElement );
+		let logger;
+		try {
+			logger = new AsyncLogger();
+		} finally {
+			clearSettings( JSON_SETTINGS_ID );
+		}
+		assert( logger.settings.texts.prefix ).equal( '' );
+	} );
+
+	await it( 'Settings which are not JSON object are reported and ignored', () =>
+	{
+		applySettings( JSON_SETTINGS_ID, [ 'not', 'an', 'object' ] );
+		let logger;
+		try {
+			logger = new AsyncLogger();
+		} finally {
+			clearSettings( JSON_SETTINGS_ID );
+		}
+		assert( logger.settings.texts.prefix ).equal( '' );
+	} );
+
+	await it( 'Script can be imported without document (in a Web Worker)', async () =>
+	{
+		const moduleUrl = new URL( './consoleFilter.mjs', import.meta.url ).href;
+		const workerCode = `import( '${ moduleUrl }' ).then( () => postMessage( 'imported' ), ( error ) => postMessage( String( error ) ) );`;
+		const worker = new Worker( URL.createObjectURL( new Blob( [ workerCode ], { type: 'text/javascript' } ) ), { type: 'module' } );
+		const result = await new Promise( ( resolve ) =>
+		{
+			worker.onmessage = ( event ) => resolve( event.data );
+			worker.onerror = ( event ) => resolve( `worker error: ${ event.message }` );
+			setTimeout( () => resolve( 'timeout' ), 5000 );
+		} );
+		worker.terminate();
+		assert( result ).equal( 'imported' );
 	} );
 
 } );

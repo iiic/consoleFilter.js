@@ -10,14 +10,24 @@
 class ConsoleFilterInternal
 {
 
+	/**
+	 * Own settings of the instance, `null` means shared static settings (`ConsoleFilter.settings`)
+	 * @type {Types.Settings | null}
+	 */
+	#ownSettings = null;
+
 	/** @type {Classes.ConsoleFilterInternal['settings']} */
 	get settings ()
 	{
-		return ConsoleFilter.settings;
+		return this.#ownSettings ?? ConsoleFilter.settings;
 	}
 	set settings ( /** @type {Partial<Types.Settings>} */ newSettings )
 	{
-		ConsoleFilter.settings = newSettings;
+		if ( this.#ownSettings === null ) {
+			ConsoleFilter.settings = newSettings;
+			return;
+		}
+		this.#ownSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( this.#ownSettings, newSettings ) );
 	}
 
 	/**
@@ -50,6 +60,38 @@ class ConsoleFilterInternal
 		} );
 
 		return /** @type {T} */ ( currentLevel );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['parseSettings']} */
+	static parseSettings ( json, source )
+	{
+		if ( json.trim() === '' ) {
+			return null;
+		}
+
+		/** @type {unknown} */
+		let settings;
+
+		try {
+			settings = JSON.parse( json );
+		} catch ( error ) {
+			ConsoleFilterInternal.reportError( `consoleFilter: settings in ${ source } are not valid JSON, they are ignored.`, error );
+			return null;
+		}
+		if ( settings === null || typeof settings !== 'object' || Array.isArray( settings ) ) {
+			ConsoleFilterInternal.reportError( `consoleFilter: settings in ${ source } are not JSON object, they are ignored.` );
+			return null;
+		}
+		return /** @type {Partial<Types.Settings>} */ ( settings );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['reportError']} */
+	static reportError ( ...data )
+	{
+		const nativeError = ConsoleFilterInternal.nativeConsoleMethods.error ?? globalThis.console?.error;
+		if ( typeof nativeError === 'function' ) {
+			Reflect.apply( nativeError, globalThis.console, data );
+		}
 	}
 
 	/** @type {(typeof Classes.ConsoleFilterInternal)['normalizeText']} */
@@ -96,8 +138,11 @@ class ConsoleFilterInternal
 	useAsyncLogger = false;
 
 	/** @type { Classes.ConsoleFilterInternal[ 'constructor' ] } */
-	constructor ( settingsElementId = 'console-filter-settings' )
+	constructor ( settingsElementId = 'console-filter-settings', hasOwnSettings = false )
 	{
+		if ( hasOwnSettings ) {
+			this.#ownSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
+		}
 		this.readSettings( settingsElementId );
 		this.setupConsole();
 	}
@@ -380,17 +425,22 @@ class ConsoleFilter extends ConsoleFilterInternal
 		readSettings: function ( /** @type {string} */ settingsElementId = 'console-filter-settings' )
 		{
 			const settingsTarget = this instanceof ConsoleFilterInternal ? this : ConsoleFilter;
-			const searchParams = new URL( import.meta.url ).searchParams;
-			if ( searchParams.has( ConsoleFilter.SETTINGS_URL_PARAMETER ) ) {
-				const jsonInString = searchParams.get( ConsoleFilter.SETTINGS_URL_PARAMETER );
-				if ( jsonInString ) {
-					settingsTarget.settings = JSON.parse( jsonInString );
-				}
+			const jsonInUrl = new URL( import.meta.url ).searchParams.get( ConsoleFilter.SETTINGS_URL_PARAMETER );
+			const settingsFromUrl = jsonInUrl
+				? ConsoleFilterInternal.parseSettings( jsonInUrl, `URL parameter "${ ConsoleFilter.SETTINGS_URL_PARAMETER }"` )
+				: null;
+			if ( settingsFromUrl ) {
+				settingsTarget.settings = settingsFromUrl;
+			}
+			if ( typeof document === 'undefined' ) {
+				return;
 			}
 			const settingsElement = document.getElementById( settingsElementId );
-			if ( settingsElement && settingsElement instanceof HTMLScriptElement ) {
-				const jsonInElement = settingsElement;
-				settingsTarget.settings = JSON.parse( jsonInElement.text );
+			const settingsFromElement = settingsElement instanceof HTMLScriptElement
+				? ConsoleFilterInternal.parseSettings( settingsElement.text, `element #${ settingsElementId }` )
+				: null;
+			if ( settingsFromElement ) {
+				settingsTarget.settings = settingsFromElement;
 			}
 		},
 		assert: function ( /** @type {boolean} */ condition, /** @type {any[]} */ ...data ) { callConsoleMethod( this, 'assert', [ condition, ...data ] ); },
@@ -415,9 +465,9 @@ class ConsoleFilter extends ConsoleFilterInternal
 	};
 
 	/** @type {Classes.ConsoleFilter['constructor']} */
-	constructor ( settingsElementId = 'console-filter-settings' )
+	constructor ( settingsElementId = 'console-filter-settings', hasOwnSettings = false )
 	{
-		super( ...arguments );
+		super( settingsElementId, hasOwnSettings );
 		this.useAsyncLogger = true;
 	}
 
@@ -477,30 +527,8 @@ class AsyncLogger
 {
 	constructor ( settingsElementId = 'console-filter-settings' )
 	{
-		const cf = new ConsoleFilter( settingsElementId );
-
-		/** @type {Types.Settings | null} */
-		let instanceSettings = null;
-
-		// Přepišeme getter/setter settings na instanci cf, aby měla vlastní nastavení
-		Object.defineProperty( cf, 'settings', {
-			get: () =>
-			{
-				if ( instanceSettings === null ) {
-					instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
-				}
-				return instanceSettings;
-			},
-			set: ( newSettings ) =>
-			{
-				if ( instanceSettings === null ) {
-					instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( {}, ConsoleFilter.DEFAULT_SETTINGS ) );
-				}
-				instanceSettings = /** @type {Types.Settings} */ ( ConsoleFilterInternal.deepAssign( instanceSettings, newSettings ) );
-			},
-			enumerable: true,
-			configurable: true
-		} );
+		// own settings, read from default settings, URL parameter and JSON element of the page
+		const cf = new ConsoleFilter( settingsElementId, true );
 
 		/** @type {Types.ConsoleMethodNames[]} */
 		const methods = /** @type {Types.ConsoleMethodNames[]} */ ( Object.keys( ConsoleFilter.methods ) );

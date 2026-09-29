@@ -220,6 +220,12 @@ declare global {
 			/** Recursively merges settings and other objects */
 			static deepAssign<T>( ...customArgs: Array.<any> ): T;
 
+			/** Parses JSON settings, invalid settings are reported by console.error() and null is returned */
+			static parseSettings( json: string, source: string ): Partial<Types.Settings> | null;
+
+			/** Writes an error into native console.error() (it is not filtered) */
+			static reportError( ...data: any[] ): void;
+
 			/** Text used for filtering: without `%c` directives, whitespace at the ends and repeated spaces */
 			static normalizeText( text: string ): string;
 
@@ -232,10 +238,10 @@ declare global {
 			/** Whether text starts with some of the entries (as whole words) */
 			static hasMatchingEntry( entries: string[], text: string ): boolean;
 
-			/** Current settings (returned throw getter function) */
+			/** Own settings of the instance, or shared static settings (ConsoleFilter.settings) */
 			get settings(): Types.Settings;
 
-			/** Current settings (with setter function for safety) */
+			/** Merges new settings into own settings of the instance, or into shared static settings */
 			set settings( newSettings: Partial<Types.Settings> );
 
 			/** Currently opened console groups (the last one is the innermost group) */
@@ -250,8 +256,12 @@ declare global {
 			/** Whether content of groups is held until the group is closed (true for ConsoleFilter instances) */
 			useAsyncLogger: boolean;
 
-			/** Constructor for ConsoleFilterInternal */
-			constructor ( settingsElementId?: string );
+			/**
+			 * Constructor for ConsoleFilterInternal
+			 * @param settingsElementId id of JSON element with settings
+			 * @param hasOwnSettings instance has own settings instead of shared static settings (ConsoleFilter.settings)
+			 */
+			constructor ( settingsElementId?: string, hasOwnSettings?: boolean );
 
 			/** Reads filtering settings from the settings element */
 			readSettings( settingsElementId?: string ): void;
@@ -307,8 +317,12 @@ declare global {
 			/** Returns name of settings get http parameter */
 			static get SETTINGS_URL_PARAMETER(): Types.Getters.SETTINGS_URL_PARAMETER;
 
-			/** Constructor for ConsoleFilter */
-			constructor ( settingsElementId?: string );
+			/**
+			 * Constructor for ConsoleFilter
+			 * @param settingsElementId id of JSON element with settings
+			 * @param hasOwnSettings instance has own settings instead of shared static settings (ConsoleFilter.settings)
+			 */
+			constructor ( settingsElementId?: string, hasOwnSettings?: boolean );
 
 			/** Creates an asynchronous console logger */
 			createAsyncLogger(): Types.ConsoleMethods;
