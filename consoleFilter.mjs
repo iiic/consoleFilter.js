@@ -52,6 +52,33 @@ class ConsoleFilterInternal
 		return /** @type {T} */ ( currentLevel );
 	}
 
+	/** @type {(typeof Classes.ConsoleFilterInternal)['normalizeText']} */
+	static normalizeText ( text )
+	{
+		return text.replaceAll( '%c', ' ' ).trim().split( ' ' ).filter( word => word !== '' ).join( ' ' );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['getFilterEntries']} */
+	static getFilterEntries ( list )
+	{
+		return ( Array.isArray( list ) ? list : [ list ] )
+			.filter( entry => typeof entry === 'string' )
+			.map( entry => ConsoleFilterInternal.normalizeText( entry ) )
+			.filter( entry => entry !== '' );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['isSelectedAll']} */
+	static isSelectedAll ( entries )
+	{
+		return entries.includes( ConsoleFilter.SYMBOLS_FOR_ALL.asterisk ) || entries.includes( ConsoleFilter.SYMBOLS_FOR_ALL.text );
+	}
+
+	/** @type {(typeof Classes.ConsoleFilterInternal)['hasMatchingEntry']} */
+	static hasMatchingEntry ( entries, text )
+	{
+		return entries.some( entry => text === entry || text.startsWith( `${ entry } ` ) );
+	}
+
 	/** @type {Partial<Record<Types.ConsoleStaticMethods, Function>>} */
 	static nativeConsoleMethods = {};
 
@@ -111,29 +138,29 @@ class ConsoleFilterInternal
 		ConsoleFilterInternal.consoleIsSetup = true;
 	}
 
-	/** @type {Classes.ConsoleFilterInternal['purgeConsoleCommand']} */
-	purgeConsoleCommand ( importantPart )
+	/** @type {Classes.ConsoleFilterInternal['isAllowedMessage']} */
+	isAllowedMessage ( importantPart )
 	{
-		const isSelectedAll = /** @param {string[]} list */ ( list ) => list[ 0 ] === ConsoleFilter.SYMBOLS_FOR_ALL.asterisk || list[ 0 ] === ConsoleFilter.SYMBOLS_FOR_ALL.text;
-		const allowlist = this.settings.allowlist;
-		const blocklist = this.settings.blocklist;
-		const purge = Boolean( Array.isArray( allowlist ) && allowlist.length && isSelectedAll( allowlist ) && !allowlist.includes( importantPart ) );
+		const allowlist = ConsoleFilterInternal.getFilterEntries( this.settings.allowlist );
+		return ConsoleFilterInternal.isSelectedAll( allowlist ) || ConsoleFilterInternal.hasMatchingEntry( allowlist, importantPart );
+	}
 
-		if ( Array.isArray( blocklist ) && blocklist.length ) {
-			if ( blocklist.includes( importantPart ) ) {
-				return true;
-			}
-			if ( !isSelectedAll( blocklist ) ) {
-				return false;
-			}
+	/** @type {Classes.ConsoleFilterInternal['isHiddenMessage']} */
+	isHiddenMessage ( importantPart, isInsideAllowedGroup = false )
+	{
+		const allowlist = ConsoleFilterInternal.getFilterEntries( this.settings.allowlist );
+		const blocklist = ConsoleFilterInternal.getFilterEntries( this.settings.blocklist );
+		if ( ConsoleFilterInternal.hasMatchingEntry( blocklist, importantPart ) ) {
+			return true;
 		}
-		return purge;
+		const isRestricted = ConsoleFilterInternal.isSelectedAll( blocklist ) || ( allowlist.length > 0 && !ConsoleFilterInternal.isSelectedAll( allowlist ) );
+		return isRestricted && !isInsideAllowedGroup && !this.isAllowedMessage( importantPart );
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['getImportantPart']} */
 	getImportantPart ( args )
 	{
-		return typeof args[ 0 ] === 'string' ? args[ 0 ].replace( /%c/g, ' ' ).trim().split( ' ' )[ 0 ] : '';
+		return typeof args[ 0 ] === 'string' ? ConsoleFilterInternal.normalizeText( args[ 0 ] ) : '';
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['callNativeMethod']} */
@@ -224,11 +251,11 @@ class ConsoleFilterInternal
 	}
 
 	/** @type {Classes.ConsoleFilterInternal['openGroup']} */
-	openGroup ( command, isVisible )
+	openGroup ( command, isVisible, isAllowed )
 	{
 
 		/** @type {Types.OpenedGroup} */
-		const group = { visible: isVisible, commands: [] };
+		const group = { visible: isVisible, allowed: isAllowed, commands: [] };
 
 		if ( isVisible && this.useAsyncLogger ) {
 			group.commands.push( command );
@@ -274,17 +301,13 @@ class ConsoleFilterInternal
 			this.closeGroup( command );
 			return;
 		}
-		if ( typeof this.settings.allowlist === 'string' ) {
-			this.settings.allowlist = [ this.settings.allowlist ];
-		}
-		if ( typeof this.settings.blocklist === 'string' ) {
-			this.settings.blocklist = [ this.settings.blocklist ];
-		}
 		const parentGroup = this.openedGroups[ this.openedGroups.length - 1 ];
-		const isPurged = typeof args[ 0 ] === 'string' && this.purgeConsoleCommand( this.getImportantPart( args ) );
-		const isVisible = ( parentGroup?.visible ?? true ) && !isPurged;
+		const isInsideAllowedGroup = parentGroup?.allowed ?? false;
+		// message of console.assert() starts after the condition
+		const importantPart = this.getImportantPart( method === 'assert' ? args.slice( 1 ) : args );
+		const isVisible = ( parentGroup?.visible ?? true ) && ( method === 'clear' || !this.isHiddenMessage( importantPart, isInsideAllowedGroup ) );
 		if ( method === ConsoleFilter.GROUP_OPENERS.group || method === ConsoleFilter.GROUP_OPENERS.groupCollapsed ) {
-			this.openGroup( command, isVisible );
+			this.openGroup( command, isVisible, isInsideAllowedGroup || this.isAllowedMessage( importantPart ) );
 			return;
 		}
 		if ( isVisible ) {

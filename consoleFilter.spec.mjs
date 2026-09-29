@@ -22,6 +22,22 @@ const isInOutput = ( text ) => document.getElementById( OUTPUT_ID )?.textContent
 const getOutputGroup = ( title ) => [ ...document.querySelectorAll( `#${ OUTPUT_ID } summary` ) ]
 	.find( ( summary ) => summary.textContent?.includes( title ) )?.parentElement ?? null;
 
+/** @param {Function} write @returns {boolean} whether calling write() added a line into the output mirror */
+const isWritten = ( write ) =>
+{
+	const linesCount = document.querySelectorAll( `#${ OUTPUT_ID } div` ).length;
+	write();
+	return document.querySelectorAll( `#${ OUTPUT_ID } div` ).length > linesCount;
+};
+
+/** @param {Object} settings @returns {any} new AsyncLogger with the settings, writing into the output mirror */
+const createLogger = ( settings ) =>
+{
+	const logger = new AsyncLogger();
+	logger.settings = { appendConsoleIntoBody: true, ...settings };
+	return logger;
+};
+
 /** @param {Object} settings @param {Function} fn runs synchronous fn with temporarily changed global settings */
 const withGlobalSettings = ( settings, fn ) =>
 {
@@ -460,6 +476,125 @@ await group( 'Dynamic tests', async () =>
 		newInstance.log( 'eee' );
 		newInstance.log( 'aaa' );
 		clearSettings( JSON_SETTINGS_ID );
+	} );
+
+} );
+
+await group( 'Filtering by allowlist and blocklist', async () =>
+{
+
+	await it( 'Without allowlist and blocklist everything is written', () =>
+	{
+		const logger = createLogger( {} );
+		assert( isWritten( () => logger.log( 'items loaded' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( { data: true } ) ) ).equal( true );
+	} );
+
+	await it( 'Allowlist writes only messages starting with its entries (whole words)', () =>
+	{
+		const logger = createLogger( { allowlist: [ 'items' ] } );
+		assert( isWritten( () => logger.log( 'items loaded' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'items' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'other message' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'itemsLoaded' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( { data: true } ) ) ).equal( false );
+	} );
+
+	await it( 'Allowlist with "*" or "all" allows everything', () =>
+	{
+		const asteriskLogger = createLogger( { allowlist: [ '*' ] } );
+		const allLogger = createLogger( { allowlist: [ 'all' ] } );
+		assert( isWritten( () => asteriskLogger.log( 'other message' ) ) ).equal( true );
+		assert( isWritten( () => allLogger.log( 'other message' ) ) ).equal( true );
+	} );
+
+	await it( 'Blocklist hides messages starting with its entries (whole words)', () =>
+	{
+		const logger = createLogger( { blocklist: [ 'word', 'another' ] } );
+		assert( isWritten( () => logger.log( 'word' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'another message' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'wordy message' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'other message' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( { data: true } ) ) ).equal( true );
+	} );
+
+	await it( 'Blocklist with "*" or "all" hides everything except allowlist', () =>
+	{
+		const logger = createLogger( { allowlist: [ 'items' ], blocklist: [ '*' ] } );
+		const allLogger = createLogger( { blocklist: [ 'all' ] } );
+		assert( isWritten( () => logger.log( 'items loaded' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'other message' ) ) ).equal( false );
+		assert( isWritten( () => allLogger.log( 'items loaded' ) ) ).equal( false );
+	} );
+
+	await it( 'Blocklist has priority over allowlist', () =>
+	{
+		const logger = createLogger( { allowlist: [ 'items' ], blocklist: [ 'items debug' ] } );
+		assert( isWritten( () => logger.log( 'items debug message' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'items loaded' ) ) ).equal( true );
+	} );
+
+	await it( 'Entry with more words matches the beginning of a message (README "exact string" example)', () =>
+	{
+		const logger = createLogger( { blocklist: [ 'exact string' ] } );
+		assert( isWritten( () => logger.log( 'exact string' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'exact string and more' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'exact' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'exact strings' ) ) ).equal( true );
+	} );
+
+	await it( 'Allowlist and blocklist can be a single string', () =>
+	{
+		const logger = createLogger( { allowlist: 'items', blocklist: 'items debug' } );
+		assert( isWritten( () => logger.log( 'items loaded' ) ) ).equal( true );
+		assert( isWritten( () => logger.log( 'items debug message' ) ) ).equal( false );
+		assert( isWritten( () => logger.log( 'other message' ) ) ).equal( false );
+	} );
+
+	await it( '%c directives and repeated spaces are ignored', () =>
+	{
+		const logger = createLogger( { allowlist: [ 'items loaded' ] } );
+		assert( isWritten( () => logger.log( '%citems%c   loaded', 'color: red', 'color: blue' ) ) ).equal( true );
+	} );
+
+	await it( 'console.assert() is filtered by its message', () =>
+	{
+		const logger = createLogger( { blocklist: [ 'hidden' ] } );
+		assert( isWritten( () => logger.assert( false, 'hidden message' ) ) ).equal( false );
+		assert( isWritten( () => logger.assert( false, 'other message' ) ) ).equal( true );
+	} );
+
+	await it( 'Whole content of a group matching allowlist is written, except blocklist', () =>
+	{
+		const logger = createLogger( { allowlist: [ 'items' ], blocklist: [ 'noise' ] } );
+		const [ nestedMarker, detailMarker, objectMarker, noiseMarker, otherMarker ] = [ createMarker(), createMarker(), createMarker(), createMarker(), createMarker() ];
+		logger.group( `items group ${ createMarker() }` );
+		logger.group( `nested group ${ nestedMarker }` );
+		logger.log( `detail ${ detailMarker }` );
+		logger.log( objectMarker, { data: true } );
+		logger.log( `noise ${ noiseMarker }` );
+		logger.groupEnd();
+		logger.groupEnd();
+		logger.log( `other ${ otherMarker }` );
+		assert( isInOutput( nestedMarker ) ).equal( true );
+		assert( isInOutput( detailMarker ) ).equal( true );
+		assert( isInOutput( objectMarker ) ).equal( true );
+		assert( isInOutput( noiseMarker ) ).equal( false );
+		assert( isInOutput( otherMarker ) ).equal( false );
+	} );
+
+	await it( 'Global console writes content of a group matching allowlist', () =>
+	{
+		const [ detailMarker, otherMarker ] = [ createMarker(), createMarker() ];
+		withGlobalSettings( { allowlist: [ 'items' ] }, () =>
+		{
+			console.group( `items group ${ createMarker() }` );
+			console.log( `detail ${ detailMarker }` );
+			console.groupEnd();
+			console.log( `other ${ otherMarker }` );
+		} );
+		assert( isInOutput( detailMarker ) ).equal( true );
+		assert( isInOutput( otherMarker ) ).equal( false );
 	} );
 
 } );

@@ -30,10 +30,16 @@ declare global {
 		/** Settings for ConsoleFilter */
 		type Settings = {
 
-			/** Messages or patterns that are allowed */
+			/**
+			 * Beginnings of messages (whole words) that are allowed, when not empty only they are written.
+			 * '*' or 'all' allows everything
+			 */
 			allowlist?: string | string[],
 
-			/** Messages or patterns that are blocked */
+			/**
+			 * Beginnings of messages (whole words) that are hidden, it has priority over allowlist.
+			 * '*' or 'all' hides everything except allowlist
+			 */
 			blocklist?: string | string[],
 
 			/** Automatically appends the console to the document */
@@ -161,6 +167,9 @@ declare global {
 			/** Whether the group (and its content) is visible */
 			visible: boolean,
 
+			/** Whether the group matches allowlist (or is inside such group), its whole content is allowed then */
+			allowed: boolean,
+
 			/** Commands held until the group is closed (only for asynchronous logger) */
 			commands: ConsoleCommand[],
 
@@ -211,6 +220,18 @@ declare global {
 			/** Recursively merges settings and other objects */
 			static deepAssign<T>( ...customArgs: Array.<any> ): T;
 
+			/** Text used for filtering: without `%c` directives, whitespace at the ends and repeated spaces */
+			static normalizeText( text: string ): string;
+
+			/** Normalized non-empty entries of allowlist or blocklist */
+			static getFilterEntries( list: string | string[] | undefined ): string[];
+
+			/** Whether entries contain symbol for all messages ('*' or 'all') */
+			static isSelectedAll( entries: string[] ): boolean;
+
+			/** Whether text starts with some of the entries (as whole words) */
+			static hasMatchingEntry( entries: string[], text: string ): boolean;
+
 			/** Current settings (returned throw getter function) */
 			get settings(): Types.Settings;
 
@@ -238,10 +259,13 @@ declare global {
 			/** Replaces the global console methods with filtered methods */
 			setupConsole(): void;
 
-			/** Determines whether a console command should be filtered out */
-			purgeConsoleCommand( importantPart: string ): boolean;
+			/** Whether message matches allowlist (or allowlist allows everything) */
+			isAllowedMessage( importantPart: string ): boolean;
 
-			/** Extracts the relevant text from console arguments */
+			/** Whether message should be hidden according to blocklist and allowlist */
+			isHiddenMessage( importantPart: string, isInsideAllowedGroup?: boolean ): boolean;
+
+			/** Text used for filtering: normalized first argument when it is a string, otherwise empty string */
 			getImportantPart( args: any[] ): string;
 
 			/** Calls a captured native console method */
@@ -253,8 +277,8 @@ declare global {
 			/** Writes a visible command, or holds it in the current group of asynchronous logger */
 			outputCommand( command: Types.ConsoleCommand ): void;
 
-			/** Opens a console group, content of an invisible group is hidden */
-			openGroup( command: Types.ConsoleCommand, isVisible: boolean ): void;
+			/** Opens a console group, content of an invisible group is hidden, content of an allowed group is allowed */
+			openGroup( command: Types.ConsoleCommand, isVisible: boolean, isAllowed: boolean ): void;
 
 			/** Closes the innermost console group (asynchronous logger writes held content of the outermost group) */
 			closeGroup( command: Types.ConsoleCommand ): void;
