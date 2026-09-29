@@ -13,7 +13,7 @@ Make native `console.log()` (and other console methods) proxied and filtered by 
 - `eslint.config.mjs` lint rules derived from the code style in `AGENTS.md`.
 - `.github/workflows/` GitHub Actions (CI) running all checks after every push and pull request.
 - `package.json` command for NPM ( [npm.js](https://www.npmjs.com/) ) catalog.
-- `ADENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
+- `AGENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
 - `README.md` class description in Markdown.
 
 ## Checks & tests
