@@ -6,7 +6,16 @@
 	"types": "consoleFilter.globals.d.ts",
 	"type": "commonjs",
 	"scripts": {
-		"test": "node --test consoleFilter.spec.mjs"
+		"test": "node scripts/run-browser-tests.mjs",
+		"test:chromium": "BROWSER=chromium node scripts/run-browser-tests.mjs",
+		"test:firefox": "BROWSER=firefox node scripts/run-browser-tests.mjs",
+		"test:webkit": "BROWSER=webkit node scripts/run-browser-tests.mjs",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"typecheck": "tsc -p jsconfig.json --noEmit",
+		"check:integrity": "node scripts/check-integrity.mjs",
+		"fix:integrity": "node scripts/check-integrity.mjs --fix",
+		"check": "npm run lint && npm run typecheck && npm run check:integrity && npm test"
 	},
 	"repository": {
 		"type": "git",
@@ -40,5 +49,12 @@
 	"bugs": {
 		"url": "https://github.com/iiic/consoleFilter.js/issues"
 	},
-	"homepage": "https://iiic.dev/console-filter-js#npmjs"
+	"homepage": "https://iiic.dev/console-filter-js#npmjs",
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"eslint": "^10.11.0",
+		"globals": "^17.12.0",
+		"playwright": "^1.63.0",
+		"typescript": "^7.0.2"
+	}
 }

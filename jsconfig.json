@@ -4,5 +4,10 @@
 		"checkJs": true,
 		"target": "es2022",
 		"module": "es2022"
-	}
+	},
+	"exclude": [
+		"node_modules",
+		"scripts",
+		"eslint.config.mjs"
+	]
 }
