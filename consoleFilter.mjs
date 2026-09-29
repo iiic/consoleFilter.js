@@ -222,9 +222,11 @@ class ConsoleFilterInternal
 		const outputArguments = argumentsList.slice();
 		if ( stringIndexes.length ) {
 			const firstStringIndex = stringIndexes[ 0 ];
-			const lastStringIndex = stringIndexes[ stringIndexes.length - 1 ];
+			// with %c directives in the first argument are the next string arguments CSS styles, not visible text
+			const isStyled = firstStringIndex === 0 && outputArguments[ 0 ].includes( '%c' );
+			const suffixIndex = isStyled ? firstStringIndex : stringIndexes[ stringIndexes.length - 1 ];
 			outputArguments[ firstStringIndex ] = this.settings.texts.prefix + outputArguments[ firstStringIndex ];
-			outputArguments[ lastStringIndex ] += this.settings.texts.suffix;
+			outputArguments[ suffixIndex ] += this.settings.texts.suffix;
 		}
 		const convertedMethod = this.settings.forceConvertFunctions[ method ] ?? method;
 		const nativeMethod = this.nativeMethods[ convertedMethod ];

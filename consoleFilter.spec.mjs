@@ -1,7 +1,7 @@
-const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + JSON.stringify( {
+const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + encodeURIComponent( JSON.stringify( {
 	appendConsoleIntoBody: true,
-} ) );
-const { applySettings, clearSettings, group, groupClosed, it, assert, beforeEach, afterEach, not, equal, toBeDefined, toBeInstanceOf } = await import( './modules/ictest.mjs?v=0.1&settings=' + JSON.stringify( {
+} ) ) );
+const { applySettings, clearSettings, group, groupClosed, it, assert } = await import( './modules/ictest.mjs?v=0.1&settings=' + JSON.stringify( {
 	nastaveni: {
 		a: true,
 	},
@@ -132,19 +132,19 @@ await group( 'Static tests', async () =>
 
 	await groupClosed( 'Static methods of consoleFilter should not contains deprecated or non-standard methods of native console', async () =>
 	{
-		it( 'exception', () =>
+		await it( 'exception', () =>
 		{
 			assert( methods.exception ).not.toBeDefined();
 		} );
-		it( 'profile', () =>
+		await it( 'profile', () =>
 		{
 			assert( methods.profile ).not.toBeDefined();
 		} );
-		it( 'count', () =>
+		await it( 'profileEnd', () =>
 		{
 			assert( methods.profileEnd ).not.toBeDefined();
 		} );
-		it( 'timeStamp', () =>
+		await it( 'timeStamp', () =>
 		{
 			assert( methods.timeStamp ).not.toBeDefined();
 		} );
@@ -167,97 +167,97 @@ await group( 'Dynamic tests', async () =>
 
 	await groupClosed( 'Dynamic methods of consoleFilter should have all methods like native console:', async () =>
 	{
-		it( 'assert', () =>
+		await it( 'assert', () =>
 		{
 			assert( console.assert ).toBeDefined();
 			assert( console.assert ).toBeInstanceOf( Function );
 		} );
-		it( 'clear', () =>
+		await it( 'clear', () =>
 		{
 			assert( console.clear ).toBeDefined();
 			assert( console.clear ).toBeInstanceOf( Function );
 		} );
-		it( 'count', () =>
+		await it( 'count', () =>
 		{
 			assert( console.count ).toBeDefined();
 			assert( console.count ).toBeInstanceOf( Function );
 		} );
-		it( 'countReset', () =>
+		await it( 'countReset', () =>
 		{
 			assert( console.countReset ).toBeDefined();
 			assert( console.countReset ).toBeInstanceOf( Function );
 		} );
-		it( 'debug', () =>
+		await it( 'debug', () =>
 		{
 			assert( console.debug ).toBeDefined();
 			assert( console.debug ).toBeInstanceOf( Function );
 		} );
-		it( 'dir', () =>
+		await it( 'dir', () =>
 		{
 			assert( console.dir ).toBeDefined();
 			assert( console.dir ).toBeInstanceOf( Function );
 		} );
-		it( 'dirxml', () =>
+		await it( 'dirxml', () =>
 		{
 			assert( console.dirxml ).toBeDefined();
 			assert( console.dirxml ).toBeInstanceOf( Function );
 		} );
-		it( 'error', () =>
+		await it( 'error', () =>
 		{
 			assert( console.error ).toBeDefined();
 			assert( console.error ).toBeInstanceOf( Function );
 		} );
-		it( 'group', () =>
+		await it( 'group', () =>
 		{
 			assert( console.group ).toBeDefined();
 			assert( console.group ).toBeInstanceOf( Function );
 		} );
-		it( 'groupCollapsed', () =>
+		await it( 'groupCollapsed', () =>
 		{
 			assert( console.groupCollapsed ).toBeDefined();
 			assert( console.groupCollapsed ).toBeInstanceOf( Function );
 		} );
-		it( 'groupEnd', () =>
+		await it( 'groupEnd', () =>
 		{
 			assert( console.groupEnd ).toBeDefined();
 			assert( console.groupEnd ).toBeInstanceOf( Function );
 		} );
-		it( 'info', () =>
+		await it( 'info', () =>
 		{
 			assert( console.info ).toBeDefined();
 			assert( console.info ).toBeInstanceOf( Function );
 		} );
-		it( 'log', () =>
+		await it( 'log', () =>
 		{
 			assert( console.log ).toBeDefined();
 			assert( console.log ).toBeInstanceOf( Function );
 		} );
-		it( 'table', () =>
+		await it( 'table', () =>
 		{
 			assert( console.table ).toBeDefined();
 			assert( console.table ).toBeInstanceOf( Function );
 		} );
-		it( 'time', () =>
+		await it( 'time', () =>
 		{
 			assert( console.time ).toBeDefined();
 			assert( console.time ).toBeInstanceOf( Function );
 		} );
-		it( 'timeEnd', () =>
+		await it( 'timeEnd', () =>
 		{
 			assert( console.timeEnd ).toBeDefined();
 			assert( console.timeEnd ).toBeInstanceOf( Function );
 		} );
-		it( 'timeLog', () =>
+		await it( 'timeLog', () =>
 		{
 			assert( console.timeLog ).toBeDefined();
 			assert( console.timeLog ).toBeInstanceOf( Function );
 		} );
-		it( 'trace', () =>
+		await it( 'trace', () =>
 		{
 			assert( console.trace ).toBeDefined();
 			assert( console.trace ).toBeInstanceOf( Function );
 		} );
-		it( 'warn', () =>
+		await it( 'warn', () =>
 		{
 			assert( console.warn ).toBeDefined();
 			assert( console.warn ).toBeInstanceOf( Function );
@@ -266,97 +266,97 @@ await group( 'Dynamic tests', async () =>
 
 	await groupClosed( 'Static methods of consoleFilter should have all methods like native console:', async () =>
 	{
-		it( 'assert', () =>
+		await it( 'assert', () =>
 		{
 			assert( methods.assert ).toBeDefined();
 			assert( methods.assert ).toBeInstanceOf( Function );
 		} );
-		it( 'clear', () =>
+		await it( 'clear', () =>
 		{
 			assert( methods.clear ).toBeDefined();
 			assert( methods.clear ).toBeInstanceOf( Function );
 		} );
-		it( 'count', () =>
+		await it( 'count', () =>
 		{
 			assert( methods.count ).toBeDefined();
 			assert( methods.count ).toBeInstanceOf( Function );
 		} );
-		it( 'countReset', () =>
+		await it( 'countReset', () =>
 		{
 			assert( methods.countReset ).toBeDefined();
 			assert( methods.countReset ).toBeInstanceOf( Function );
 		} );
-		it( 'debug', () =>
+		await it( 'debug', () =>
 		{
 			assert( methods.debug ).toBeDefined();
 			assert( methods.debug ).toBeInstanceOf( Function );
 		} );
-		it( 'dir', () =>
+		await it( 'dir', () =>
 		{
 			assert( methods.dir ).toBeDefined();
 			assert( methods.dir ).toBeInstanceOf( Function );
 		} );
-		it( 'dirxml', () =>
+		await it( 'dirxml', () =>
 		{
 			assert( methods.dirxml ).toBeDefined();
 			assert( methods.dirxml ).toBeInstanceOf( Function );
 		} );
-		it( 'error', () =>
+		await it( 'error', () =>
 		{
 			assert( methods.error ).toBeDefined();
 			assert( methods.error ).toBeInstanceOf( Function );
 		} );
-		it( 'group', () =>
+		await it( 'group', () =>
 		{
 			assert( methods.group ).toBeDefined();
 			assert( methods.group ).toBeInstanceOf( Function );
 		} );
-		it( 'groupCollapsed', () =>
+		await it( 'groupCollapsed', () =>
 		{
 			assert( methods.groupCollapsed ).toBeDefined();
 			assert( methods.groupCollapsed ).toBeInstanceOf( Function );
 		} );
-		it( 'groupEnd', () =>
+		await it( 'groupEnd', () =>
 		{
 			assert( methods.groupEnd ).toBeDefined();
 			assert( methods.groupEnd ).toBeInstanceOf( Function );
 		} );
-		it( 'info', () =>
+		await it( 'info', () =>
 		{
 			assert( methods.info ).toBeDefined();
 			assert( methods.info ).toBeInstanceOf( Function );
 		} );
-		it( 'log', () =>
+		await it( 'log', () =>
 		{
 			assert( methods.log ).toBeDefined();
 			assert( methods.log ).toBeInstanceOf( Function );
 		} );
-		it( 'table', () =>
+		await it( 'table', () =>
 		{
 			assert( methods.table ).toBeDefined();
 			assert( methods.table ).toBeInstanceOf( Function );
 		} );
-		it( 'time', () =>
+		await it( 'time', () =>
 		{
 			assert( methods.time ).toBeDefined();
 			assert( methods.time ).toBeInstanceOf( Function );
 		} );
-		it( 'timeEnd', () =>
+		await it( 'timeEnd', () =>
 		{
 			assert( methods.timeEnd ).toBeDefined();
 			assert( methods.timeEnd ).toBeInstanceOf( Function );
 		} );
-		it( 'timeLog', () =>
+		await it( 'timeLog', () =>
 		{
 			assert( methods.timeLog ).toBeDefined();
 			assert( methods.timeLog ).toBeInstanceOf( Function );
 		} );
-		it( 'trace', () =>
+		await it( 'trace', () =>
 		{
 			assert( methods.trace ).toBeDefined();
 			assert( methods.trace ).toBeInstanceOf( Function );
 		} );
-		it( 'warn', () =>
+		await it( 'warn', () =>
 		{
 			assert( methods.warn ).toBeDefined();
 			assert( methods.warn ).toBeInstanceOf( Function );
@@ -391,8 +391,9 @@ await group( 'Dynamic tests', async () =>
 		assert( instancePrefixValue ).equal( prefixValue );
 	} );
 
-	await group( 'Force change one console command to another', () =>
+	await it( 'Force change one console command to another', () =>
 	{
+		const marker = createMarker();
 		applySettings( JSON_SETTINGS_ID, {
 			forceConvertFunctions: {
 				log: 'warn'
@@ -400,32 +401,49 @@ await group( 'Dynamic tests', async () =>
 		} );
 		const newInstance = new AsyncLogger();
 		newInstance.readSettings();
-		newInstance.log( 'this console.log() should be changed to console.warn()' );
 		clearSettings( JSON_SETTINGS_ID );
+		newInstance.log( `this console.log() should be changed to console.warn() ${ marker }` );
+		assert( isInOutput( `warn: this console.log() should be changed to console.warn() ${ marker }` ) ).equal( true );
 	} );
 
-	await groupClosed( 'Class test… look into browser\'s console', async () =>
+	await it( 'Prefix is added before and suffix after the visible text of a message', () =>
 	{
-		let C = class
+		const marker = createMarker();
+		const newInstance = createLogger( {
+			texts: {
+				prefix: '[prefix] ',
+				suffix: ' [suffix]'
+			}
+		} );
+		newInstance.log( `%cstyled ${ marker }`, 'color: red' );
+		newInstance.log( `plain ${ marker }`, 'last' );
+		assert( isInOutput( `log: [prefix] %cstyled ${ marker } [suffix] color: red` ) ).equal( true );
+		assert( isInOutput( `log: [prefix] plain ${ marker } last [suffix]` ) ).equal( true );
+	} );
+
+	await it( 'AsyncLogger does not mix groups of asynchronous methods', async () =>
+	{
+		const C = class
 		{
 
 			color;
-			colorName;
+			label;
 			console;
+			running;
 
-			constructor ( /** @type {String} */ color )
+			constructor ( /** @type {String} */ color, /** @type {String} */ label )
 			{
 				this.color = `font-weight: strong; color: ${ color }`;
-				this.colorName = color;
+				this.label = label;
 				this.console = new AsyncLogger();
-				this.console.settings.appendConsoleIntoBody = false;
-				this.run();
+				this.console.settings.appendConsoleIntoBody = true;
+				this.running = this.run();
 			}
 
 			async run ()
 			{
-				this.console.groupCollapsed( '%c Class C ', this.color, this.colorName );
-				this.console.log( '%c run', this.color );
+				this.console.groupCollapsed( '%c Class C ', this.color, this.label );
+				this.console.log( '%c run', this.color, this.label );
 				await this.asyncMethod();
 				this.syncMethod();
 				this.console.groupEnd();
@@ -437,7 +455,7 @@ await group( 'Dynamic tests', async () =>
 				{
 					setTimeout( () =>
 					{
-						this.console.log( '%c asyncMethod', this.color, this.colorName );
+						this.console.log( '%c asyncMethod', this.color, this.label );
 						resolve( true );
 					}, 99 );
 				} );
@@ -445,41 +463,42 @@ await group( 'Dynamic tests', async () =>
 
 			syncMethod ()
 			{
-				this.console.group( '%c syncMethod', this.color, this.colorName );
+				this.console.group( '%c syncMethod', this.color, this.label );
 				this.subSyncMethod();
 				this.console.groupEnd();
 			}
 
 			subSyncMethod ()
 			{
-				this.console.log( '%c subSyncMethod', this.color, this.colorName );
+				this.console.log( '%c subSyncMethod', this.color, this.label );
 			}
-		}
+		};
 
-		new C( 'red' );
-		new C( 'green' );
+		const [ redLabel, greenLabel ] = [ createMarker(), createMarker() ];
+		const red = new C( 'red', redLabel );
+		const green = new C( 'green', greenLabel );
+		await Promise.all( [ red.running, green.running ] );
+		const redGroupText = getOutputGroup( redLabel )?.textContent ?? '';
+		const greenGroupText = getOutputGroup( greenLabel )?.textContent ?? '';
+		assert( redGroupText.includes( `asyncMethod font-weight: strong; color: red ${ redLabel }` ) ).equal( true );
+		assert( redGroupText.includes( `subSyncMethod font-weight: strong; color: red ${ redLabel }` ) ).equal( true );
+		assert( greenGroupText.includes( `asyncMethod font-weight: strong; color: green ${ greenLabel }` ) ).equal( true );
+		assert( redGroupText.includes( greenLabel ) ).equal( false );
+		assert( greenGroupText.includes( redLabel ) ).equal( false );
 	} );
 
-	await group( 'Tests of filtering… look into browser\'s console', async () =>
+	await it( 'AsyncLogger.readSettings() reads blocklist from JSON element', () =>
 	{
 		const newInstance = new AsyncLogger();
-		newInstance.log( 'aaa', 'bbb', 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'bbb', 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'ddd', 'eee' );
-		newInstance.log( 'eee' );
-		newInstance.log( 'aaa' );
+		assert( isWritten( () => newInstance.log( 'aaa', 'bbb' ) ) ).equal( true );
 		applySettings( JSON_SETTINGS_ID, {
 			blocklist: [ 'aaa', 'list of strings to be blocked' ]
 		} );
 		newInstance.readSettings();
-		newInstance.log( 'aaa', 'bbb', 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'bbb', 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'ccc', 'ddd', 'eee' );
-		newInstance.log( 'ddd', 'eee' );
-		newInstance.log( 'eee' );
-		newInstance.log( 'aaa' );
 		clearSettings( JSON_SETTINGS_ID );
+		assert( isWritten( () => newInstance.log( 'aaa', 'bbb' ) ) ).equal( false );
+		assert( isWritten( () => newInstance.log( 'bbb', 'aaa' ) ) ).equal( true );
+		assert( isWritten( () => newInstance.log( 'list of strings to be blocked' ) ) ).equal( false );
 	} );
 
 } );
