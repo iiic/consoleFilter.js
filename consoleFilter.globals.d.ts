@@ -30,10 +30,16 @@ declare global {
 		/** Settings for ConsoleFilter */
 		type Settings = {
 
-			/** Messages or patterns that are allowed */
+			/**
+			 * Beginnings of messages (whole words) that are allowed, when not empty only they are written.
+			 * '*' or 'all' allows everything
+			 */
 			allowlist?: string | string[],
 
-			/** Messages or patterns that are blocked */
+			/**
+			 * Beginnings of messages (whole words) that are hidden, it has priority over allowlist.
+			 * '*' or 'all' hides everything except allowlist
+			 */
 			blocklist?: string | string[],
 
 			/** Automatically appends the console to the document */
@@ -141,28 +147,31 @@ declare global {
 		/** Map of native console methods */
 		type NativeMethods = Partial<Record<ConsoleStaticMethods, Function>>;
 
-		/** A queued asynchronous console command */
-		type AsyncGroupCommand = {
+		/** One call of a console method */
+		type ConsoleCommand = {
 
 			/** Name of the console method */
 			method: ConsoleStaticMethods,
 
-			/** Function used to execute the method */
-			proxy: Function,
+			/** Native console method (can be missing in some environments) */
+			proxy: Function | undefined,
 
 			/** Arguments passed to the method */
 			args: any[],
 
 		};
 
-		/** State of a group of asynchronous console commands */
-		type AsyncGroup = {
+		/** State of an opened console group */
+		type OpenedGroup = {
 
-			/** Queued commands */
-			commands: AsyncGroupCommand[],
-
-			/** Whether the group is visible */
+			/** Whether the group (and its content) is visible */
 			visible: boolean,
+
+			/** Whether the group matches allowlist (or is inside such group), its whole content is allowed then */
+			allowed: boolean,
+
+			/** Commands held until the group is closed (only for asynchronous logger) */
+			commands: ConsoleCommand[],
 
 		};
 
@@ -211,17 +220,32 @@ declare global {
 			/** Recursively merges settings and other objects */
 			static deepAssign<T>( ...customArgs: Array.<any> ): T;
 
-			/** Current settings (returned throw getter function) */
+			/** Parses JSON settings, invalid settings are reported by console.error() and null is returned */
+			static parseSettings( json: string, source: string ): Partial<Types.Settings> | null;
+
+			/** Writes an error into native console.error() (it is not filtered) */
+			static reportError( ...data: any[] ): void;
+
+			/** Text used for filtering: without `%c` directives, whitespace at the ends and repeated spaces */
+			static normalizeText( text: string ): string;
+
+			/** Normalized non-empty entries of allowlist or blocklist */
+			static getFilterEntries( list: string | string[] | undefined ): string[];
+
+			/** Whether entries contain symbol for all messages ('*' or 'all') */
+			static isSelectedAll( entries: string[] ): boolean;
+
+			/** Whether text starts with some of the entries (as whole words) */
+			static hasMatchingEntry( entries: string[], text: string ): boolean;
+
+			/** Own settings of the instance, or shared static settings (ConsoleFilter.settings) */
 			get settings(): Types.Settings;
 
-			/** Current settings (with setter function for safety) */
+			/** Merges new settings into own settings of the instance, or into shared static settings */
 			set settings( newSettings: Partial<Types.Settings> );
 
-			/** Currently opened console groups */
-			openedGroups: string[];
-
-			/** Queued asynchronous console groups */
-			asyncGroups: Types.AsyncGroup[];
+			/** Currently opened console groups (the last one is the innermost group) */
+			openedGroups: Types.OpenedGroup[];
 
 			/** Captured native console methods */
 			nativeMethods: Types.NativeMethods;
@@ -229,11 +253,15 @@ declare global {
 			/** Open groups currently rendered in document.body */
 			bodyConsoleGroups: HTMLElement[];
 
-			/** Whether asynchronous logging is enabled */
+			/** Whether content of groups is held until the group is closed (true for ConsoleFilter instances) */
 			useAsyncLogger: boolean;
 
-			/** Constructor for ConsoleFilterInternal */
-			constructor ( settingsElementId?: string );
+			/**
+			 * Constructor for ConsoleFilterInternal
+			 * @param settingsElementId id of JSON element with settings
+			 * @param hasOwnSettings instance has own settings instead of shared static settings (ConsoleFilter.settings)
+			 */
+			constructor ( settingsElementId?: string, hasOwnSettings?: boolean );
 
 			/** Reads filtering settings from the settings element */
 			readSettings( settingsElementId?: string ): void;
@@ -241,10 +269,13 @@ declare global {
 			/** Replaces the global console methods with filtered methods */
 			setupConsole(): void;
 
-			/** Determines whether a console command should be filtered out */
-			purgeConsoleCommand( importantPart: string ): boolean;
+			/** Whether message matches allowlist (or allowlist allows everything) */
+			isAllowedMessage( importantPart: string ): boolean;
 
-			/** Extracts the relevant text from console arguments */
+			/** Whether message should be hidden according to blocklist and allowlist */
+			isHiddenMessage( importantPart: string, isInsideAllowedGroup?: boolean ): boolean;
+
+			/** Text used for filtering: normalized first argument when it is a string, otherwise empty string */
 			getImportantPart( args: any[] ): string;
 
 			/** Calls a captured native console method */
@@ -253,17 +284,17 @@ declare global {
 			/** Appends a console message to the document body */
 			appendConsoleMessage( method: Types.ConsoleStaticMethods, args: any[] ): void;
 
-			/** Handles a console method while asynchronous logging is active */
-			handleAsyncConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): boolean;
+			/** Writes a visible command, or holds it in the current group of asynchronous logger */
+			outputCommand( command: Types.ConsoleCommand ): void;
 
-			/** Handles a console method with non-string arguments */
-			handleNonStringConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): boolean;
+			/** Opens a console group, content of an invisible group is hidden, content of an allowed group is allowed */
+			openGroup( command: Types.ConsoleCommand, isVisible: boolean, isAllowed: boolean ): void;
 
-			/** Handles a console method with string arguments */
-			handleStringConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): void;
+			/** Closes the innermost console group (asynchronous logger writes held content of the outermost group) */
+			closeGroup( command: Types.ConsoleCommand ): void;
 
 			/** Handles a call to a console method */
-			handleConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function, args: any[] ): void;
+			handleConsoleMethod( method: Types.ConsoleStaticMethods, proxy: Function | undefined, args: any[] ): void;
 
 		}
 
@@ -286,8 +317,12 @@ declare global {
 			/** Returns name of settings get http parameter */
 			static get SETTINGS_URL_PARAMETER(): Types.Getters.SETTINGS_URL_PARAMETER;
 
-			/** Constructor for ConsoleFilter */
-			constructor ( settingsElementId?: string );
+			/**
+			 * Constructor for ConsoleFilter
+			 * @param settingsElementId id of JSON element with settings
+			 * @param hasOwnSettings instance has own settings instead of shared static settings (ConsoleFilter.settings)
+			 */
+			constructor ( settingsElementId?: string, hasOwnSettings?: boolean );
 
 			/** Creates an asynchronous console logger */
 			createAsyncLogger(): Types.ConsoleMethods;
