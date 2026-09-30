@@ -1,12 +1,14 @@
 {
 	"name": "console-filter-js",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "Make native console.log() (and other console methods) proxied and filtered by text string",
 	"main": "consoleFilter.mjs",
 	"types": "consoleFilter.globals.d.ts",
 	"type": "commonjs",
 	"scripts": {
-		"test": "node --test consoleFilter.spec.mjs"
+		"test": "node --test consoleFilter.spec.mjs",
+		"test:browser": "node .github/scripts/browser-tests.mjs",
+		"check:integrity": "node .github/scripts/check-integrity.mjs"
 	},
 	"repository": {
 		"type": "git",

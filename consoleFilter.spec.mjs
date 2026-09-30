@@ -1,4 +1,4 @@
-const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + JSON.stringify( {
+const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.1&settings=' + JSON.stringify( {
 	appendConsoleIntoBody: true,
 } ) );
 const { applySettings, clearSettings, group, groupClosed, it, assert, beforeEach, afterEach, not, equal, toBeDefined, toBeInstanceOf } = await import( './modules/ictest.mjs?v=0.1&settings=' + JSON.stringify( {

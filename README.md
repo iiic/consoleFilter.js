@@ -1,7 +1,8 @@
 # consoleFilter.js
 
-version: 1.0
-integrity check sha256: wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4=
+version: 1.1
+
+integrity check sha256: HYlm5laDb7BszjHyNx3V8LKJsKu1pHYToOF1xWue3ZM=
 
 Make native `console.log()` (and other console methods) proxied and filtered by text string.
 Only pure javascript with TypeScript annotations, no other dependencies, libraries, frameworks or anything like that. TypeScript what? It's only about annotations, automatic tools can mark this class as a TypeScript library, but it's not true, just an autodetection failure, the script itself is pure javascript, only the annotations, interfaces, variable types described by TypeScript, ...
@@ -12,13 +13,13 @@ Use
 Include file `consoleFilter.mjs` into document. Including should look like:
 
 ``` html
-<script src="./consoleFilter.mjs?v=1.0" type="module" crossorigin="anonymous" integrity="sha256-wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4="></script>
+<script src="./consoleFilter.mjs?v=1.1" type="module" crossorigin="anonymous" integrity="sha256-wKBRIpKc5Mls91VCZcaQP1Q4TuCPSpk52HrXblTngs4="></script>
 ```
 
 or inside javascript:
 
 ``` javascript
-const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0' );
+const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.1' );
 ```
 
 After import all console commands are proxied!
@@ -51,7 +52,7 @@ The function is asynchronous, so you must wait for the result using await or Pro
 Example:
 ```html
 <script type="module">
-	const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.0&settings=' + JSON.stringify( {
+	const { ConsoleFilter, methods, AsyncLogger } = await import( './consoleFilter.mjs?v=1.1&settings=' + JSON.stringify( {
 		"allowlist": [ "items" ],
 		"blocklist": [ "word", "another", "word" ],
 	} ) );
@@ -139,7 +140,7 @@ To set a property, it is not necessary to insert the entire settings object, jus
 - `modules/ictest.mjs`, Tests runtime. Used **only** for the above mentioned unit test file. Not needed for the script itself.
 - `tests-runner.html` HTML file used for run tests in Browser. It is also not needed for the script itself.
 - `package.json` command for NPM ( [npm.js](https://www.npmjs.com/) ) catalog.
-- `ADENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
+- `AGENTS.md` commands for AI agents, description how to work with this repository. Something like Readme for AI.
 - `README.md` class description in Markdown.
 
 ## Common gotchas

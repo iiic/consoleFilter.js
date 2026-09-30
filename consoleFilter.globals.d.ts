@@ -1,8 +1,8 @@
 /**
  * @file consoleFilter.globals.d.ts
  * @description TypeScript global declarations for ConsoleFilter.
- * @version 1.0
- * @since Q3 2026
+ * @version 1.1.0
+ * @since Q4 2026
  * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
  * @author ic<ic.czech+console-filter@gmail.com>
  * @see {@link https://github.com/iiic/consoleFilter.js|GitHub}

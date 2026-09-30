@@ -318,8 +318,8 @@ class ConsoleFilterInternal
  * @class
  * @extends ConsoleFilterInternal
  * @implements {Classes.ConsoleFilter}
- * @version 1.0
- * @since Q3 2026
+ * @version 1.1.0
+ * @since Q4 2026
  * @file consoleFilter.js
  * @description Make native `console.log()` (and other console methods) proxied and filtered by text string
  * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
